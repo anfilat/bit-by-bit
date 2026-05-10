@@ -1,0 +1,48 @@
+{
+  "reference": [
+    {
+      "title": "reconstructState mutates shared entry data",
+      "description": "**1. `reconstructState` mutates shared entry data (`state.ts:22-30`)**\n\n```ts\nconst { rootEntryId, sourceMessage, tasks } = initData;\n// ...\nif (data.taskIndex !== undefined) tasks[data.taskIndex].done = true;\n```\n\n`initData` is a direct reference to the entry stored in `SessionManager`. Mutating `tasks[i].done` modifies the stored entry in-place. If the session manager caches entries or reuses them across calls, this causes subtle cross-contamination — calling `reconstructState` twice would apply done/undone entries on top of already-mutated state. Fix: deep-clone `tasks` before mutating:\n\n```ts\nconst tasks = initData.tasks.map(t => ({ ...t }));\n```"
+    },
+    {
+      "title": "EXTRACTION_PROMPT is narrowly scoped to code review",
+      "description": "**2. `EXTRACTION_PROMPT` is narrowly scoped to code review (`extraction.ts:10-17`)**\n\n```\n\\\"You are a code review result parser. Extract all identified issues from the text.\\\"\n```\n\nThe extension's docstring says \\\"step-by-step task management extracted from LLM messages\\\" — a general purpose. The prompt will fail or return `[]` for non-review messages (e.g., a planning response listing implementation steps). The prompt should either be generalized or made configurable."
+    },
+    {
+      "title": "Only /bit-by-bit start is implemented — 8 commands are stubs",
+      "description": "**3. Only `/bit-by-bit start` is implemented — 8 commands are stubs**\n\n`select`, `next`, `prev`, `done`, `undone`, `write`, `off`, `resume` all just show \"not implemented yet\" notifications. This means the extension can extract tasks and enter the first one, but has no navigation, completion, or pause/resume capability. This severely limits the value of the extension."
+    },
+    {
+      "title": "onSessionTree is an empty stub",
+      "description": "**4. `onSessionTree` is an empty stub (`index.ts:88-90`)**\n\n```ts\nfunction onSessionTree(_state, _event, _ctx): void {\n  // Stub — will be implemented in step 18\n}\n```\n\nSession tree navigation events are essential for updating `currentTaskIndex` and `insideBbb` when the user manually navigates the tree. Without this, the status bar and task context injection will go stale after any manual navigation."
+    },
+    {
+      "title": "No error handling around pi.appendEntry / pi.setLabel calls",
+      "description": "**5. No error handling around `pi.appendEntry` / `pi.setLabel` calls (`commands/start.ts`)**\n\nThese calls hit the session manager and can fail (e.g., invalid entry IDs). If `appendEntry` for the INIT entry succeeds but `setLabel` fails, the extension state is partially written — persisted init entry but no branch marker. The next `reconstructState` call would recover, but the user gets no error feedback."
+    },
+    {
+      "title": "parseTaskJson accepts empty strings as valid title/description",
+      "description": "**6. `parseTaskJson` accepts empty strings as valid title/description (`extraction.ts:24`)**\n\n```ts\ntypeof item.title === 'string' && typeof item.description === 'string'\n```\n\nAn item with `{ title: \"\", description: \"\" }` passes validation. Consider also checking `item.title.length > 0`."
+    },
+    {
+      "title": "slugify is defined, tested, but never used",
+      "description": "**7. `slugify` is defined, tested, but never used (`commands.ts:27-36`)**\n\nDead code — either remove it or note where it will be used (presumably for branch labels or file names in the `write` command once implemented)."
+    },
+    {
+      "title": "reconstructState is O(2n) — could be O(n)",
+      "description": "**8. `reconstructState` is O(2n) — could be O(n)**\n\nThe function iterates all entries to find the last init entry, then iterates all entries *again* to apply done/undone/off/resume. A single reverse pass could collect both in one scan."
+    },
+    {
+      "title": "Comment step numbers reference a development plan",
+      "description": "**9. Comment step numbers reference a development plan (`commands/start.ts`)**\n\nComments like `// 4. Extract tasks with loader UI`, `// 11. Navigate to root...` reference a linear step plan. This is fine during development but could be simplified to describe the *what* rather than the step number."
+    },
+    {
+      "title": "handleStart rejects single-task extraction",
+      "description": "**10. `handleStart` rejects single-task extraction (`commands/start.ts:77-80`)**\n\n```ts\nif (tasks.length === 1) {\n    ctx.ui.notify('bit-by-bit: only one task found, nothing to split', 'warning');\n    return;\n}\n```\n\nThis is opinionated — a user might want to use bit-by-bit even with a single task (for the branch isolation and task context injection). Consider making this a soft prompt rather than a hard block."
+    },
+    {
+      "title": "findBranchInSubtree latestId may be unreliable",
+      "description": "**11. `findBranchInSubtree` uses stack-based DFS correctly but `latestId` may be unreliable (`branching.ts:46-51`)**\n\nThe function finds the latest entry by comparing ISO timestamp strings lexicographically. This works for ISO 8601, but if two entries have the same timestamp (same millisecond), the result depends on iteration order. Not a real bug, but worth a comment."
+    }
+  ]
+}

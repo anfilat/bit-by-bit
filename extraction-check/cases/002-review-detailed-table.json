@@ -1,0 +1,52 @@
+{
+  "reference": [
+    {
+      "title": "`findBranchInSubtree` may return wrong `leafId`",
+      "description": "**1. `findBranchInSubtree` may return wrong `leafId`** (`branching.ts`)\n\nThe function iterates subtree nodes and tracks the one with the latest timestamp as `leafId`. But this isn't the actual leaf — it's just the node with the highest timestamp among entries in that subtree. The session tree's actual leaf for a branch is determined by `parentId` chains, not by timestamps. If entries have non-monotonic timestamps (e.g., due to clock adjustments, parallel operations, or restored sessions), this could return the wrong leaf.\n\n```typescript\n// branching.ts:58-61\nif (entry.timestamp >= latestTs) {\n  latestTs = entry.timestamp;\n  latestId = entry.id;\n}\n```\n\n**Risk**: Restoring a branch after session reload could navigate to the wrong position. In practice, timestamps are usually monotonic, so this is a low-severity issue, but it's still an assumption worth documenting or replacing with proper tree traversal (walking to the deepest child or using the actual leaf tracking from the session tree)."
+    },
+    {
+      "title": "`onSessionTree` saves `branchLeafId` unconditionally when `insideBbb`",
+      "description": "**2. `onSessionTree` saves `branchLeafId` unconditionally when `insideBbb`** (`index.ts:88-93`)\n\n```typescript\nif (state.insideBbb) {\n  const currentTask = state.tasks[state.currentTaskIndex];\n  if (currentTask?.branchLeafId) {  // ← only saves if already has a leafId\n    const leafId = ctx.sessionManager.getLeafId();\n    if (leafId) currentTask.branchLeafId = leafId;\n  }\n}\n```\n\nThis is guarded by `currentTask?.branchLeafId` (falsy check), so it only updates tasks that already have a `branchLeafId`. This is correct — but the condition name is slightly misleading. The intent is \"only update if the task has been visited\", which is what `branchLeafId` being set means. No actual bug, but worth a comment for clarity."
+    },
+    {
+      "title": "`write.ts` uses synchronous `writeFileSync` / `mkdirSync`",
+      "description": "**3. `write.ts` uses synchronous `writeFileSync` / `mkdirSync`** (`commands/write.ts:46-48`)\n\n```typescript\nmkdirSync(dir, { recursive: true });\nwriteFileSync(filePath, document, 'utf-8');\n```\n\nThis blocks the event loop during I/O. In an extension context this is unlikely to be a problem (small files, infrequent operation), but the async versions (`fs.promises.mkdir`, `fs.promises.writeFile`) would be more idiomatic for an async extension handler. This matches common patterns in other pi extensions though."
+    },
+    {
+      "title": "`state.ts` applies done/undone entries across ALL entries, not just current branch",
+      "description": "**4. `state.ts` applies done/undone entries across ALL entries, not just those on the current branch** (`state.ts:36-51`)\n\n```typescript\nfor (const e of entries) {\n  // ... applies DONE/UNDONE/OFF/RESUME for matching rootEntryId\n}\n```\n\n`getEntries()` returns *all* entries (not just current branch). If the user navigated to a different branch and created conflicting entries there, they'd all be replayed. Since the entries are scoped by `rootEntryId`, this is safe — but if there were multiple `bit-by-bit-init` entries (from separate `/bit-by-bit start` calls), only the last init is used, but ALL subsequent done/undone entries matching its `rootEntryId` are applied. This is actually correct behavior, but worth being aware of."
+    },
+    {
+      "title": "No cleanup of old `bit-by-bit-init` data",
+      "description": "**5. No cleanup of old `bit-by-bit-init` data** — Multiple calls to `/bit-by-bit start` would leave old init entries in the session. The code only uses the last one (reverse scan), so this isn't a bug, but it does mean old entries accumulate."
+    },
+    {
+      "title": "`extraction.ts` depends on `@earendil-works/pi-ai` directly",
+      "description": "**6. `extraction.ts` depends on `@earendil-works/pi-ai` directly** — Uses `complete()` and types from `pi-ai`. This is listed as an available import in the docs, so this is fine. Just noting it as a coupling point."
+    },
+    {
+      "title": "`handleOff` doesn't reset `insideBbb` or `currentTaskIndex`",
+      "description": "**7. `handleOff` doesn't reset `insideBbb` or `currentTaskIndex`** (`commands/off.ts`)\n\nWhen the user pauses with `/bit-by-bit off`, `state.active` is set to false but `insideBbb` and `currentTaskIndex` remain unchanged. This is fine because `onBeforeAgentStart` and `onTurnEnd` check `state.active`, but it means `formatStatus()` returns `undefined` when paused, which clears the status bar entirely. This is intentional (per the code), but consider showing \"bit-by-bit: paused\" in the status bar instead so the user knows the mode is available."
+    },
+    {
+      "title": "`formatStatus` uses `process.stdout.columns`",
+      "description": "**8. `formatStatus` uses `process.stdout.columns`** (`status.ts:13`)\n\n```typescript\nconst cols = process.stdout.columns ?? 80;\n```\n\nThis works in interactive mode but will be `undefined` in JSON/print mode. The `?? 80` fallback handles it, but it's slightly inconsistent with the rest of the code that checks `ctx.hasUI`."
+    },
+    {
+      "title": "Missing `session_shutdown` handler",
+      "description": "**9. Missing `session_shutdown` handler** — The extension registers `session_start` but not `session_shutdown`. If the extension held resources that needed cleanup ( timers, file handles, etc.), this would be a gap. Currently it's fine since state is purely in-memory and reconstructed on load."
+    },
+    {
+      "title": "`handleWrite` ignores `_pi` parameter",
+      "description": "**10. `handleWrite` ignores `_pi` parameter** (`commands/write.ts:7`)\n\nThe `_pi` parameter is unused. The write operation uses `ctx.ui.custom()` and `ctx.modelRegistry` directly instead. This is fine — just a dead parameter."
+    },
+    {
+      "title": "Test helpers have two separate `createMockPi` implementations",
+      "description": "**11. Test helpers have two separate `createMockPi` implementations** — `__tests__/helpers.ts` and `commands/__tests__/helpers.ts` have duplicated mock logic. The commands version is more complete (includes `bitByBitExtension(pi)` call). Consider consolidating into a shared test utility."
+    },
+    {
+      "title": "`parseTaskJson` has a subtle edge case",
+      "description": "**12. `parseTaskJson` has a subtle edge case** (`extraction.ts:44-46`)\n\n```typescript\nif (e instanceof SyntaxError) {\n  // Not raw JSON — try stripping markdown fence\n} else {\n  throw e;\n}\n```\n\nIf `doParse` throws a `SyntaxError` from inside `JSON.parse`, it falls through to the fence-stripping path — correct. But if `doParse`'s `filter`/validation logic throws a `TypeError` (e.g., `parsed.filter is not a function` because the JSON isn't an array), it re-throws. However, the actual guard is `if (!Array.isArray(parsed)) throw new Error('Not an array')`, so `TypeError` from `.filter` shouldn't occur. The error handling is correct, just subtle."
+    }
+  ]
+}

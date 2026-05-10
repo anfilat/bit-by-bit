@@ -1,0 +1,52 @@
+{
+  "reference": [
+    {
+      "title": "`context` handler doesn't return `{ messages }` when nothing is filtered",
+      "description": "#### 1. `context` handler doesn't return `{ messages }` when nothing is filtered\n\nIn `index.ts` → `onContext`:\n```ts\nfunction onContext(state: BitByBitState, event: ContextEvent) {\n  if (!state.initialized) return;\n  // ...\n  return { messages: filtered };\n}\n```\nWhen `!state.initialized`, it returns `undefined`, which is fine (pi keeps messages unchanged). But when `state.initialized` is true and there are no `TASK_DESCRIPTION` messages, it still returns a new `{ messages }` array with the same contents. This is **wasteful but not a bug** — pi handles it correctly. Still, it would be cleaner to return `undefined` when no filtering occurred:\n\n```ts\nconst hasTaskDesc = event.messages.some(\n  msg => msg.role === 'custom' && msg.customType === MESSAGE_TYPE.TASK_DESCRIPTION\n);\nif (!hasTaskDesc) return;\n```"
+    },
+    {
+      "title": "`handleOff` doesn't update `insideBbb` or save current task's `branchLeafId`",
+      "description": "#### 2. `handleOff` doesn't update `insideBbb` or save current task's `branchLeafId`\n\nWhen `off` is called while `insideBbb` is true, the current task's `branchLeafId` isn't updated to the current leaf. If the user does work after `/bit-by-bit off` and then resumes, the task will navigate back to the old `branchLeafId`, losing the post-off work that was still in the task's subtree."
+    },
+    {
+      "title": "`handleResume` doesn't handle the case where `state.tasks` is empty",
+      "description": "#### 3. `handleResume` doesn't handle the case where `state.tasks` is empty\n\nIf somehow `tasks` is empty (shouldn't happen but defensive coding), `state.currentTaskIndex = taskIndex` from `findTaskByLeaf` would be `0`, and subsequent status formatting would access `state.tasks[0]` which could be undefined."
+    },
+    {
+      "title": "`switchToTask` — `task.branchLeafId` set with non-null assertion",
+      "description": "#### 4. `switchToTask` — `task.branchLeafId` set with non-null assertion\n\n```ts\ntask.branchLeafId = ctx.sessionManager.getLeafId()!;\n```\nThe `!` assertion could fail if `getLeafId()` returns `null` (e.g., empty session). The code above does check `if (leafId)` for the `appendEntry`/`setLabel` calls, but then still sets `branchLeafId` with `!`. Should use the same `leafId` variable:\n\n```ts\nconst leafId = ctx.sessionManager.getLeafId();\nif (leafId) {\n  pi.appendEntry(...);\n  pi.setLabel(leafId, formatLabel(task));\n  task.branchLeafId = leafId;\n}\n```"
+    },
+    {
+      "title": "`handleSelect` — fragile index parsing from formatted string",
+      "description": "#### 5. `handleSelect` — fragile index parsing from formatted string\n\n```ts\nconst match = selected.match(/^\\S\\s+(\\d+)\\./);\n```\nThis parses the task index from the formatted display string like `\"✗ 1. Title ←\"`. If `formatTaskList` changes format, this breaks silently. Consider returning structured data or using the array index directly via `items.indexOf(selected)`."
+    },
+    {
+      "title": "`reconstructState` scans all entries linearly",
+      "description": "#### 6. `reconstructState` scans all entries linearly\n\nFor long sessions with many entries, scanning from the end to find the last init entry, then scanning all entries for done/undone/off/resume is O(n). This is fine for typical sessions but worth noting."
+    },
+    {
+      "title": "`findBranchInSubtree` uses timestamp comparison for leafId",
+      "description": "#### 7. `findBranchInSubtree` uses timestamp comparison for leafId\n\n```ts\nif (entry.timestamp >= latestTs) {\n  latestTs = entry.timestamp;\n  latestId = entry.id;\n}\n```\nTimestamps are `string` (ISO format), so lexicographic comparison works correctly for ISO 8601. ✅ But if `timestamp` is ever a `number`, string comparison would be wrong. The type in `SessionTreeNode` is `string`, so this is fine for now."
+    },
+    {
+      "title": "`handleWrite` is a stub",
+      "description": "#### 8. `handleWrite` is a stub\n\nThe `/bit-by-bit write` command just shows \"not implemented yet\". This is documented in `AGENTS.md` as 🔲. Not a bug, just incomplete."
+    },
+    {
+      "title": "Custom message renderer for `MESSAGE_TYPE.TASK_DESCRIPTION`",
+      "description": "#### 9. Custom message renderer for `MESSAGE_TYPE.TASK_DESCRIPTION`\n\nThe extension sends messages with `customType: 'bit-by-bit'` but doesn't register a `registerMessageRenderer()`. This means task descriptions will use default rendering. A custom renderer could show a styled task header with index/total."
+    },
+    {
+      "title": "No `session_shutdown` cleanup",
+      "description": "#### 10. No `session_shutdown` cleanup\n\nThe extension doesn't subscribe to `session_shutdown`. Since state is fully in-memory and reconstructed from entries, this isn't strictly needed, but it's good practice per the docs."
+    },
+    {
+      "title": "`before_agent_start` doesn't use `event.systemPrompt`",
+      "description": "#### 11. `before_agent_start` doesn't use `event.systemPrompt`\n\nThe handler returns a `message` but doesn't modify the system prompt. This is fine — the injected message approach works. But using `systemPrompt` modification would be more reliable for ensuring the LLM always sees the task context, even after compaction."
+    },
+    {
+      "title": "`promptSnippet` / `promptGuidelines` not applicable",
+      "description": "#### 12. `promptSnippet` / `promptGuidelines` not applicable\n\nSince this extension registers a command (not a tool), these don't apply. Just noting it for completeness."
+    }
+  ]
+}

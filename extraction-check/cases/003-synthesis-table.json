@@ -1,0 +1,88 @@
+{
+  "reference": [
+    {
+      "title": "parseBranchEntry returns undefined on potentially missing taskIndex",
+      "description": "| 1 | Warning | `parseBranchEntry` returns `undefined` (non-null assertion on potentially missing `taskIndex`) — `undefined` passes the `!== null` check downstream | `branching.ts:17` → `return entryData.taskIndex ?? null;` |"
+    },
+    {
+      "title": "reconstructState done/undone loop doesn't scope to entries after last init",
+      "description": "| 2 | Warning | `reconstructState` done/undone loop doesn't scope to entries after the last init — double-start on the same leaf could apply stale done states | `state.ts:26-41` → iterate only entries after last init index |"
+    },
+    {
+      "title": "Plus 6 additional notes",
+      "description": "Plus 6 notes (display glitch at≤30 cols, misleading \"not active\" message, `handleNext`/`handlePrev` state before `await`, `findBranchInSubtree` picks latest across sub-branches, test assertion via reference mutation, `buildFileName` minute-granularity collision)."
+    },
+    {
+      "title": "No test for hasUI guard on any command handler",
+      "description": "- No test for `hasUI` guard on any command handler"
+    },
+    {
+      "title": "No test for skipSessionTree flag in session_tree handler",
+      "description": "- No test for `skipSessionTree` flag in session_tree handler"
+    },
+    {
+      "title": "No test for formatStatus title truncation at narrow terminals",
+      "description": "- No test for `formatStatus` title truncation at narrow terminals"
+    },
+    {
+      "title": "No test verifying handleWrite file path/content",
+      "description": "- No test verifying `handleWrite` file path/content"
+    },
+    {
+      "title": "No test for handleDone/handleUndone when !state.insideBbb",
+      "description": "- No test for `handleDone`/`handleUndone` when `!state.insideBbb`"
+    },
+    {
+      "title": "No test for handleWrite when !ctx.model with discussion",
+      "description": "- No test for `handleWrite` when `!ctx.model` with discussion"
+    },
+    {
+      "title": "switchToTask has no direct unit test",
+      "description": "- `switchToTask` has no direct unit test (only tested through commands)"
+    },
+    {
+      "title": "9 command handlers copy-paste the same 3-step preamble",
+      "description": "| 1 | Warning | **9 command handlers copy-paste the same 3-step preamble** (hasUI guard → waitForIdle → initialized/active check). `done`/`undone` differ only in boolean direction; `next`/`prev` differ only in +1/−1 |"
+    },
+    {
+      "title": "resolveNextTask/resolvePrevTask are trivially inlinable one-liners",
+      "description": "| 2 | Warning | `resolveNextTask`/`resolvePrevTask` are trivially inlinable one-liners exported solely for unit testing |"
+    },
+    {
+      "title": "Over-modularization: single-function files that could merge",
+      "description": "| 3 | Warning | Over-modularization: `wait-for-idle.ts` (12 lines), `commands.ts` (12 lines), `formatting.ts` (28 lines) — single-function files that could merge |"
+    },
+    {
+      "title": "ExtractionCancelled custom error class is never caught by type",
+      "description": "| 4 | Warning | `ExtractionCancelled` custom error class is never caught by type — a plain `Error` would suffice |"
+    },
+    {
+      "title": "Task.index is a denormalized field always equal to array position",
+      "description": "| 5 | Warning | `Task.index` is a denormalized field always equal to array position |"
+    },
+    {
+      "title": "Type aliases obscure rather than clarify",
+      "description": "| 6 | Warning | Type aliases (`SessionManagerRO`, `SessionTreeNode`, `AuthResult`) obscure rather than clarify |"
+    },
+    {
+      "title": "BitByBitEntryData is loosely-typed optional bag used with ! assertions",
+      "description": "| 7 | Warning | `BitByBitEntryData` is a loosely-typed optional bag used with `!` non-null assertions at call sites |"
+    },
+    {
+      "title": "findBranchInSubtree does two unrelated things",
+      "description": "| 8 | Suggestion | `findBranchInSubtree` does two unrelated things (find branch + find latest leaf) |"
+    },
+    {
+      "title": "Architecture doc comment lives on a constant rather than near hooks",
+      "description": "| 9 | Suggestion | Architecture doc comment lives on a constant rather than near the hooks that implement it |"
+    },
+    {
+      "title": "Two separate tree traversal implementations",
+      "description": "| 10 | Suggestion | Two separate tree traversal implementations (recursive in `state.ts`, iterative in `branching.ts`) |"
+    },
+    {
+      "title": "HANDLERS dispatch table could be a simple switch",
+      "description": "| 11 | Suggestion | `HANDLERS` dispatch table could be a simple `switch` |"
+    }
+  ]
+}

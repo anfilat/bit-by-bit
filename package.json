@@ -1,0 +1,48 @@
+{
+  "name": "bit-by-bit",
+  "version": "0.1.0",
+  "description": "Step-by-step task management for Pi — splits LLM output into isolated task branches",
+  "author": "Andrey Filatkin",
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "pi"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "lint": "oxlint src/",
+    "lint:fix": "oxlint --fix src/",
+    "format": "oxfmt src/ test/",
+    "format:check": "oxfmt --check src/ test/",
+    "typecheck": "tsc --noEmit",
+    "extraction:compare": "node --experimental-strip-types extraction-check/compare.ts",
+    "extraction:update": "node --experimental-strip-types extraction-check/compare.ts --update"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.48.0",
+    "oxlint": "^1.63.0",
+    "simple-git-hooks": "^2.13.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "@sinclair/typebox": "*"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npx oxfmt --check src/ test/ && npx oxlint src/ && npx vitest run"
+  },
+  "files": [
+    "src/**/*.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "pi": {
+    "extensions": [
+      "./src"
+    ]
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,72 @@
+{
+  "reference": [
+    {
+      "title": "Blocker: taskIndex has no bounds check during reconstruction",
+      "description": "**Blocker** | `state.ts:42,44,63` — `taskIndex` has no bounds check during reconstruction. A stale or corrupted DONE/UNDONE/BRANCH entry with `taskIndex >= tasks.length` throws `TypeError` and crashes the entire `session_start` handler | `state.ts:42,44,63`"
+    },
+    {
+      "title": "In-memory state mutated before async switchToTask with no rollback",
+      "description": "Note | In-memory state mutated before async `switchToTask` with no rollback on failure | `choose.ts:80`, `next-prev.ts:35`, `start.ts:75`"
+    },
+    {
+      "title": "slugify can return empty string causing malformed filenames",
+      "description": "Note | `slugify` can return empty string → malformed filenames like `2026-05-10-14-30-.md` | `write.ts:20`"
+    },
+    {
+      "title": "buildDocumentWithDiscussion doesn't check stopReason === 'aborted'",
+      "description": "Note | `buildDocumentWithDiscussion` doesn't check `stopReason === 'aborted'` | `write.ts:146`"
+    },
+    {
+      "title": "switchToTask never tested with navigateTree returning cancelled",
+      "description": "**Medium** | `switchToTask` never tested with `navigateTree` returning `{ cancelled: true }` — code would incorrectly create branch entries | `commands/__tests__/` (no test file)"
+    },
+    {
+      "title": "getLeafId() returning null in switchToTask — null-safety path untested",
+      "description": "Low-Med | `getLeafId()` returning null in `switchToTask` — null-safety path untested | `commands/switch-task.ts:44-52`"
+    },
+    {
+      "title": "guard.ts hasUI = false path untested for all commands",
+      "description": "Low | `guard.ts` `hasUI = false` path untested for all commands | `commands/__tests__/helpers.ts` hardcodes `true`"
+    },
+    {
+      "title": "formatBranchConversation string msg.content path untested",
+      "description": "Low | `formatBranchConversation` string `msg.content` path untested | `write.ts:76-78`"
+    },
+    {
+      "title": "parseTaskJson bare fence (no json tag) untested",
+      "description": "Very Low | `parseTaskJson` bare fence (no `json` tag) untested | `extraction.ts:39`"
+    },
+    {
+      "title": "resume.ts duplicates 3 guard checks instead of extending guard()",
+      "description": "**Medium** | `resume.ts` duplicates 3 guard checks instead of extending `guard()` with a `{ requirePaused: true }` option | `resume.ts:8-27` vs `guard.ts:14-25`"
+    },
+    {
+      "title": "Task.index field is redundant with array position",
+      "description": "Low | `Task.index` field is redundant with array position | `types.ts:5`, set in `start.ts:104`"
+    },
+    {
+      "title": "~8 exports exist solely for test access with no external consumers",
+      "description": "Low | ~8 exports exist solely for test access (no external consumers) | Various"
+    },
+    {
+      "title": "resolveNextTask/resolvePrevTask are trivial ±1 one-liners, over-abstracted",
+      "description": "Low | `resolveNextTask`/`resolvePrevTask` are trivial ±1 one-liners, over-abstracted | `next-prev.ts:7-14`"
+    },
+    {
+      "title": "EXTRACTION_PROMPT, MAX_SLUG_LENGTH exported but never imported externally",
+      "description": "Low | `EXTRACTION_PROMPT`, `MAX_SLUG_LENGTH` exported but never imported externally | `extraction.ts:4`, `write.ts:8`"
+    },
+    {
+      "title": "wait-for-idle.ts is a 5-line standalone module",
+      "description": "Low | `wait-for-idle.ts` is a 5-line standalone module | `wait-for-idle.ts`"
+    },
+    {
+      "title": "GuardOptions interface for a single optional boolean",
+      "description": "Low | `GuardOptions` interface for a single optional boolean | `guard.ts:5-7`"
+    },
+    {
+      "title": "BitByBitEntryData is too loose to provide meaningful type safety",
+      "description": "Low | `BitByBitEntryData` is too loose to provide meaningful type safety | `types.ts:22-25`"
+    }
+  ]
+}
