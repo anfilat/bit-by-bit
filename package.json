@@ -1,5 +1,5 @@
 {
-  "name": "bit-by-bit",
+  "name": "@anfilat/bit-by-bit",
   "version": "0.1.0",
   "description": "Step-by-step task management for Pi — splits LLM output into isolated task branches",
   "author": "Andrey Filatkin",

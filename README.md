@@ -10,7 +10,7 @@ so the assistant only works on the current task without being distracted by the 
 ## Install
 
 ```bash
-pi install git:github.com/anfilat/bit-by-bit
+pi install npm:@anfilat/bit-by-bit
 ```
 
 ## Usage
