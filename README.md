@@ -2,7 +2,10 @@
 
 A [Pi](https://github.com/earendil-works/pi) extension for step-by-step task management.
 
-Splits an LLM response into individual tasks and works on them one at a time in isolated session tree branches. Each task gets its own context — the assistant only sees the current task, not the full list.
+When an LLM produces a long list — review feedback, plan items, a set of ideas — it's hard to handle all at once.
+This extension splits such a list into individual tasks and lets you focus on one at a time.
+You can switch between tasks and mark them done — each one lives in its own branch,
+so the assistant only works on the current task without being distracted by the rest.
 
 ## Install
 
@@ -10,17 +13,11 @@ Splits an LLM response into individual tasks and works on them one at a time in 
 pi install git:github.com/anfilat/bit-by-bit
 ```
 
-Or try without installing:
-
-```bash
-pi -e git:github.com/anfilat/bit-by-bit
-```
-
 ## Usage
 
 1. Ask the LLM to produce a numbered list — a review, a plan, a set of issues, anything with distinct items.
 2. Run `/bit-by-bit` — the extension extracts each item into a separate task and navigates to the first one.
-3. Work on the task. When done, use `/bit-by-bit next` or `/bit-by-bit done` to move on.
+3. Work on the task. When done, use `/bit-by-bit done` to mark it done and `/bit-by-bit next` to move to next one.
 
 ### Commands
 
@@ -32,7 +29,7 @@ pi -e git:github.com/anfilat/bit-by-bit
 | `/bit-by-bit prev` | Go to previous task |
 | `/bit-by-bit done` | Mark current task as done |
 | `/bit-by-bit undone` | Unmark current task |
-| `/bit-by-bit write` | Write progress document to `bit-by-bit/` directory |
+| `/bit-by-bit write` | Write a task document to `bit-by-bit/` directory, so you can shelve it for later |
 | `/bit-by-bit off` | Pause bit-by-bit mode |
 | `/bit-by-bit resume` | Resume after pause |
 
@@ -56,28 +53,11 @@ bit-by-bit: 12(✓2) | ⚠ Outside task area
 
 ## How it works
 
-1. **Extraction** — `/bit-by-bit` calls the current model to parse the last assistant message into structured `{ title, description }` items.
-2. **Branching** — Each task gets its own branch forked from the current point in the session tree. The extension records a `bit-by-bit-branch` marker in each branch so it can reconstruct state on session reload.
-3. **Context isolation** — On every turn, a `before_agent_start` hook injects a context message telling the assistant to focus only on the current task. The `context` hook strips task-description markers from LLM input.
+1. **Extraction** — `/bit-by-bit` calls the current model to parse the last assistant message into items.
+2. **Branching** — Each task gets its own branch forked from the current point in the session tree.
+3. **Context isolation** — On every turn, the extension injects a context message telling the assistant to focus only on the current task.
 4. **Persistence** — All state (tasks, done/off/resume markers, branch mappings) is stored in the session tree as custom entries. Full state reconstruction happens on session restore.
-5. **Progress documents** — `/bit-by-bit write` generates a markdown file per task. If the task branch has no discussion, it writes the task description. If there's a conversation, it summarizes it using the current model.
-
-## Development
-
-```bash
-npm install
-npm test           # vitest run
-npm run typecheck  # tsc --noEmit
-npm run lint       # oxlint src/
-npm run format     # oxfmt src/ test/
-```
-
-Extraction prompt regression testing:
-
-```bash
-npm run extraction:compare   # compare against reference
-npm run extraction:update    # update reference files
-```
+5. **Shelving tasks** — `/bit-by-bit write` generates a markdown document describing the current task, so you can set it aside and come back to it later.
 
 ## License
 
