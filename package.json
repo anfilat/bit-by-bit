@@ -44,5 +44,13 @@
       "./src"
     ]
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anfilat/bit-by-bit.git"
+  },
+  "homepage": "https://github.com/anfilat/bit-by-bit#readme",
+  "bugs": {
+    "url": "https://github.com/anfilat/bit-by-bit/issues"
+  },
   "license": "MIT"
 }
