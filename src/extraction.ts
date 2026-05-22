@@ -1,5 +1,6 @@
-import { complete, type Model, type AssistantMessage } from '@earendil-works/pi-ai';
+import type { Model } from '@earendil-works/pi-ai';
 import type { PiModelAuthResult } from './types.js';
+import { callLlm } from './llm.js';
 
 export const EXTRACTION_PROMPT = `You are a structured item parser. Extract ONLY the primary content items — specific findings, issues, tasks, suggestions, or distinct topics that can be acted on independently.
 
@@ -74,33 +75,6 @@ export async function extractTasks(
   text: string,
   signal?: AbortSignal
 ): Promise<{ title: string; description: string }[]> {
-  if (!auth.ok) {
-    throw new Error(auth.error);
-  }
-  if (!auth.apiKey) {
-    throw new Error(`No API key for ${model.provider}`);
-  }
-
-  const userMessage = {
-    role: 'user' as const,
-    content: [{ type: 'text' as const, text }],
-    timestamp: Date.now(),
-  };
-
-  const response: AssistantMessage = await complete(
-    model,
-    { systemPrompt: EXTRACTION_PROMPT, messages: [userMessage] },
-    { apiKey: auth.apiKey, headers: auth.headers, signal }
-  );
-
-  if (response.stopReason === 'aborted') {
-    throw new Error('Extraction cancelled');
-  }
-
-  const responseText = response.content
-    .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-    .map(c => c.text)
-    .join('');
-
+  const responseText = await callLlm(model, auth, EXTRACTION_PROMPT, text, 'Extraction cancelled', signal);
   return parseTaskJson(responseText);
 }

@@ -20,6 +20,7 @@
 | `index.ts` | Entry point — registers `/bit-by-bit` command and event hooks |
 | `types.ts` | Shared types: `Task`, `BitByBitState`, extracted pi types |
 | `constants.ts` | Entry types (`bit-by-bit-init`, etc.) and message types |
+| `llm.ts` | Shared LLM call helper (auth validation, `complete()`, abort, response text) |
 | `extraction.ts` | LLM-based task extraction from text, JSON parsing |
 | `branching.ts` | Walking session tree to find which task a leaf belongs to |
 | `state.ts` | `reconstructState` — rebuilds in-memory state from persisted entries |

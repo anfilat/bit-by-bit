@@ -1,7 +1,8 @@
 import type { CustomMessageEntry, SessionEntry, SessionMessageEntry } from '@earendil-works/pi-coding-agent';
-import { complete, type Model, type AssistantMessage } from '@earendil-works/pi-ai';
+import type { Model } from '@earendil-works/pi-ai';
 import type { PiModelAuthResult, Task } from './types.js';
 import { MESSAGE_TYPE } from './constants.js';
+import { callLlm } from './llm.js';
 
 // ─── Slug helper ────────────────────────────────────────────────────────────
 
@@ -84,16 +85,16 @@ export function formatBranchConversation(branch: SessionEntry[]): string {
           ? msg.content
           : Array.isArray(msg.content)
             ? msg.content
-                .filter((c: any) => c.type === 'text')
-                .map((c: any) => c.text)
+                .filter(c => c.type === 'text')
+                .map(c => c.text)
                 .join('\n')
             : '';
       lines.push(`User: ${text}`);
     } else if (msg.role === 'assistant') {
       const text = Array.isArray(msg.content)
         ? msg.content
-            .filter((c: any) => c.type === 'text')
-            .map((c: any) => c.text)
+            .filter(c => c.type === 'text')
+            .map(c => c.text)
             .join('\n')
         : '';
       if (text) lines.push(`Assistant: ${text}`);
@@ -106,8 +107,8 @@ export function formatBranchConversation(branch: SessionEntry[]): string {
     } else if (msg.role === 'toolResult') {
       const text = Array.isArray(msg.content)
         ? msg.content
-            .filter((c: any) => c.type === 'text')
-            .map((c: any) => c.text)
+            .filter(c => c.type === 'text')
+            .map(c => c.text)
             .join('\n')
         : '';
       const truncated = text.length > 500 ? text.slice(0, 500) + '...' : text;
@@ -148,36 +149,10 @@ export async function buildDocumentWithDiscussion(
   branch: SessionEntry[],
   signal?: AbortSignal
 ): Promise<string> {
-  if (!auth.ok) {
-    throw new Error(auth.error);
-  }
-  if (!auth.apiKey) {
-    throw new Error(`No API key for ${model.provider}`);
-  }
-
   const conversationText = formatBranchConversation(branch);
 
   const systemPrompt = `${SUMMARIZATION_PROMPT}\n\nTask: ${task.title}\n${task.description}`;
-  const userMessage = {
-    role: 'user' as const,
-    content: [{ type: 'text' as const, text: conversationText }],
-    timestamp: Date.now(),
-  };
-
-  const response: AssistantMessage = await complete(
-    model,
-    { systemPrompt, messages: [userMessage] },
-    { apiKey: auth.apiKey, headers: auth.headers, signal }
-  );
-
-  if (response.stopReason === 'aborted') {
-    throw new Error('Summarization cancelled');
-  }
-
-  const summary = response.content
-    .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-    .map(c => c.text)
-    .join('');
+  const summary = await callLlm(model, auth, systemPrompt, conversationText, 'Summarization cancelled', signal);
 
   return [`# ${task.title}`, '', '## Task', '', task.description, '', '## Summary', '', summary].join('\n');
 }
