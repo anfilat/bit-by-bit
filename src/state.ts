@@ -18,8 +18,11 @@ export function reconstructState(sm: PiReadonlySessionManager): BitByBitState | 
   for (let i = entries.length - 1; i >= 0; i--) {
     const e = entries[i];
     if (e.type === 'custom' && e.customType === ENTRY_TYPE.INIT) {
-      initData = e.data as BitByBitInitData;
-      lastInitIndex = i;
+      const d = e.data as BitByBitInitData;
+      if (d && typeof d.rootEntryId === 'string' && Array.isArray(d.tasks)) {
+        initData = d;
+        lastInitIndex = i;
+      }
       break;
     }
   }

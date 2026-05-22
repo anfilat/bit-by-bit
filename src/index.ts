@@ -70,13 +70,12 @@ const HANDLERS: Record<Subcommand, HandlerFn> = {
 // ─── Event handlers ─────────────────────────────────────────────────────────
 
 function onSessionStart(state: BitByBitState, ctx: ExtensionContext): void {
-  const restored = reconstructState(ctx.sessionManager);
-  if (!restored) {
-    state.initialized = false;
-    updateStatus(state, ctx);
-    return;
-  }
-  Object.assign(state, restored);
+  try {
+    const restored = reconstructState(ctx.sessionManager);
+    if (restored) {
+      Object.assign(state, restored);
+    }
+  } catch {}
   updateStatus(state, ctx);
 }
 
@@ -189,7 +188,11 @@ export default function bitByBitExtension(pi: ExtensionAPI) {
         ctx.ui.notify(`Unknown subcommand: "${args.trim()}". Available: ${[...SUBCOMMANDS].join(', ')}`, 'warning');
         return;
       }
-      await HANDLERS[sub](state, ctx, pi);
+      try {
+        await HANDLERS[sub](state, ctx, pi);
+      } catch (err) {
+        ctx.ui.notify(`bit-by-bit: unexpected error — ${err instanceof Error ? err.message : String(err)}`, 'error');
+      }
     },
   });
 
