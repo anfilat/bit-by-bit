@@ -1,10 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('@earendil-works/pi-ai', () => ({
-  complete: vi.fn(),
-}));
-
-import { complete } from '@earendil-works/pi-ai';
+import type { ModelRegistry } from '@earendil-works/pi-coding-agent';
 import type { AssistantMessage, Model } from '@earendil-works/pi-ai';
 import {
   hasDiscussion,
@@ -75,7 +71,8 @@ const fakeModel = {
   maxTokens: 4096,
 } as Model<'openai-completions'>;
 
-const fakeAuth = { ok: true as const, apiKey: 'test-key' };
+const complete = vi.fn();
+const fakeRegistry = { complete } as unknown as ModelRegistry;
 
 const fakeTask: Task = {
   index: 0,
@@ -226,11 +223,11 @@ describe('buildDocumentNoDiscussion', () => {
 
 describe('buildDocumentWithDiscussion', () => {
   beforeEach(() => {
-    vi.mocked(complete).mockReset();
+    complete.mockReset();
   });
 
   it('builds document with summary from LLM', async () => {
-    vi.mocked(complete).mockResolvedValue(
+    complete.mockResolvedValue(
       makeAssistantResponse('Added null check in UserService.getUser(). Files modified: UserService.java')
     );
 
@@ -240,7 +237,7 @@ describe('buildDocumentWithDiscussion', () => {
       makeMessageEntry('assistant', [{ type: 'text', text: 'I fixed it' }]),
     ];
 
-    const doc = await buildDocumentWithDiscussion(fakeModel, fakeAuth, fakeTask, branch);
+    const doc = await buildDocumentWithDiscussion(fakeModel, fakeRegistry, fakeTask, branch);
 
     expect(doc).toContain('# Fix null pointer in UserService');
     expect(doc).toContain('## Task');
@@ -250,51 +247,39 @@ describe('buildDocumentWithDiscussion', () => {
   });
 
   it('builds document for done task', async () => {
-    vi.mocked(complete).mockResolvedValue(makeAssistantResponse('Summary'));
+    complete.mockResolvedValue(makeAssistantResponse('Summary'));
 
     const doneTask: Task = { ...fakeTask, done: true };
-    const doc = await buildDocumentWithDiscussion(fakeModel, fakeAuth, doneTask, []);
+    const doc = await buildDocumentWithDiscussion(fakeModel, fakeRegistry, doneTask, []);
     expect(doc).not.toContain('## Progress');
   });
 
-  it('throws when auth.ok is false', async () => {
-    await expect(
-      buildDocumentWithDiscussion(fakeModel, { ok: false, error: 'Auth failed' }, fakeTask, [])
-    ).rejects.toThrow('Auth failed');
-  });
-
-  it('throws when apiKey is undefined', async () => {
-    await expect(buildDocumentWithDiscussion(fakeModel, { ok: true }, fakeTask, [])).rejects.toThrow(
-      'No API key for openai'
-    );
-  });
-
   it('throws when response is aborted', async () => {
-    vi.mocked(complete).mockResolvedValue(makeAssistantResponse('partial...', 'aborted'));
+    complete.mockResolvedValue(makeAssistantResponse('partial...', 'aborted'));
 
-    await expect(buildDocumentWithDiscussion(fakeModel, fakeAuth, fakeTask, [])).rejects.toThrow(
+    await expect(buildDocumentWithDiscussion(fakeModel, fakeRegistry, fakeTask, [])).rejects.toThrow(
       'Summarization cancelled'
     );
   });
 
   it('propagates errors from complete', async () => {
-    vi.mocked(complete).mockRejectedValue(new Error('Network error'));
+    complete.mockRejectedValue(new Error('Network error'));
 
-    await expect(buildDocumentWithDiscussion(fakeModel, fakeAuth, fakeTask, [])).rejects.toThrow('Network error');
+    await expect(buildDocumentWithDiscussion(fakeModel, fakeRegistry, fakeTask, [])).rejects.toThrow('Network error');
   });
 
   it('calls complete with summarization prompt containing task info', async () => {
-    vi.mocked(complete).mockResolvedValue(makeAssistantResponse('Summary'));
+    complete.mockResolvedValue(makeAssistantResponse('Summary'));
 
-    await buildDocumentWithDiscussion(fakeModel, fakeAuth, fakeTask, []);
+    await buildDocumentWithDiscussion(fakeModel, fakeRegistry, fakeTask, []);
 
     expect(complete).toHaveBeenCalledOnce();
-    const call = vi.mocked(complete).mock.calls[0];
-    const options = call[1];
+    const call = complete.mock.calls[0];
+    const context = call[1];
 
     // systemPrompt should contain task title and description
-    expect(options.systemPrompt).toContain('Fix null pointer in UserService');
-    expect(options.systemPrompt).toContain('Fix NPE in UserService.java line 42.');
+    expect(context.systemPrompt).toContain('Fix null pointer in UserService');
+    expect(context.systemPrompt).toContain('Fix NPE in UserService.java line 42.');
   });
 });
 

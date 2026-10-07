@@ -55,8 +55,7 @@ export async function handleStart(state: BitByBitState, ctx: ExtensionCommandCon
     loader.onAbort = () => done(null);
 
     const doExtract = async () => {
-      const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model!);
-      return extractTasks(ctx.model!, auth, lastAssistantText!, loader.signal);
+      return extractTasks(ctx.model!, ctx.modelRegistry, lastAssistantText!, loader.signal);
     };
 
     doExtract()

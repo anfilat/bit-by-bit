@@ -1,6 +1,6 @@
 {
   "name": "@anfilat/bit-by-bit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Step-by-step task management for Pi — splits LLM output into isolated task branches",
   "author": "Andrey Filatkin",
   "type": "module",
@@ -15,10 +15,14 @@
     "format": "oxfmt src/ test/",
     "format:check": "oxfmt --check src/ test/",
     "typecheck": "tsc --noEmit",
-    "extraction:compare": "node --experimental-strip-types extraction-check/compare.ts",
-    "extraction:update": "node --experimental-strip-types extraction-check/compare.ts --update"
+    "extraction:compare": "jiti extraction-check/compare.ts",
+    "extraction:update": "jiti extraction-check/compare.ts --update"
   },
   "devDependencies": {
+    "@earendil-works/pi-ai": "^1.0.4",
+    "@earendil-works/pi-coding-agent": "^1.0.4",
+    "@earendil-works/pi-tui": "^1.0.4",
+    "jiti": "^2.7.0",
     "oxfmt": "^0.48.0",
     "oxlint": "^1.63.0",
     "simple-git-hooks": "^2.13.0",
@@ -28,8 +32,7 @@
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",
     "@earendil-works/pi-coding-agent": "*",
-    "@earendil-works/pi-tui": "*",
-    "@sinclair/typebox": "*"
+    "@earendil-works/pi-tui": "*"
   },
   "simple-git-hooks": {
     "pre-commit": "npx oxfmt --check src/ test/ && npx oxlint src/ && npx vitest run"

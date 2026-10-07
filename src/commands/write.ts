@@ -31,8 +31,7 @@ export async function handleWrite(
       loader.onAbort = () => done(null);
 
       const doSummarize = async () => {
-        const auth = await ctx.modelRegistry.getApiKeyAndHeaders(ctx.model!);
-        return buildDocumentWithDiscussion(ctx.model!, auth, task, branch, loader.signal);
+        return buildDocumentWithDiscussion(ctx.model!, ctx.modelRegistry, task, branch, loader.signal);
       };
 
       doSummarize()

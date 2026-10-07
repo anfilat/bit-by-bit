@@ -1,5 +1,5 @@
+import type { ModelRegistry } from '@earendil-works/pi-coding-agent';
 import type { Model } from '@earendil-works/pi-ai';
-import type { PiModelAuthResult } from './types.js';
 import { callLlm } from './llm.js';
 
 export const EXTRACTION_PROMPT = `You are a structured item parser. Extract ONLY the primary content items — specific findings, issues, tasks, suggestions, or distinct topics that can be acted on independently.
@@ -71,10 +71,10 @@ export function parseTaskJson(raw: string): { title: string; description: string
 
 export async function extractTasks(
   model: Model<any>,
-  auth: PiModelAuthResult,
+  modelRegistry: ModelRegistry,
   text: string,
   signal?: AbortSignal
 ): Promise<{ title: string; description: string }[]> {
-  const responseText = await callLlm(model, auth, EXTRACTION_PROMPT, text, 'Extraction cancelled', signal);
+  const responseText = await callLlm(model, modelRegistry, EXTRACTION_PROMPT, text, 'Extraction cancelled', signal);
   return parseTaskJson(responseText);
 }

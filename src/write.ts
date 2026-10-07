@@ -1,6 +1,11 @@
-import type { CustomMessageEntry, SessionEntry, SessionMessageEntry } from '@earendil-works/pi-coding-agent';
+import type {
+  CustomMessageEntry,
+  ModelRegistry,
+  SessionEntry,
+  SessionMessageEntry,
+} from '@earendil-works/pi-coding-agent';
 import type { Model } from '@earendil-works/pi-ai';
-import type { PiModelAuthResult, Task } from './types.js';
+import type { Task } from './types.js';
 import { MESSAGE_TYPE } from './constants.js';
 import { callLlm } from './llm.js';
 
@@ -140,11 +145,11 @@ export function buildDocumentNoDiscussion(task: Task): string {
 
 /**
  * Build the markdown document for Scenario 2 — there is a conversation on
- * the branch. Calls `complete()` to summarize the progress.
+ * the branch. Calls the LLM to summarize the progress.
  */
 export async function buildDocumentWithDiscussion(
   model: Model<any>,
-  auth: PiModelAuthResult,
+  modelRegistry: ModelRegistry,
   task: Task,
   branch: SessionEntry[],
   signal?: AbortSignal
@@ -152,7 +157,14 @@ export async function buildDocumentWithDiscussion(
   const conversationText = formatBranchConversation(branch);
 
   const systemPrompt = `${SUMMARIZATION_PROMPT}\n\nTask: ${task.title}\n${task.description}`;
-  const summary = await callLlm(model, auth, systemPrompt, conversationText, 'Summarization cancelled', signal);
+  const summary = await callLlm(
+    model,
+    modelRegistry,
+    systemPrompt,
+    conversationText,
+    'Summarization cancelled',
+    signal
+  );
 
   return [`# ${task.title}`, '', '## Task', '', task.description, '', '## Summary', '', summary].join('\n');
 }

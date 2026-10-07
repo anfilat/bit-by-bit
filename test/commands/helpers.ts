@@ -165,11 +165,7 @@ export function makeCtx(overrides: MakeCtxOverrides = {}): MockCtx {
       getTree: vi.fn().mockReturnValue([]),
     },
     modelRegistry: {
-      getApiKeyAndHeaders: vi.fn().mockResolvedValue({
-        ok: true,
-        apiKey: 'test-key',
-        headers: {},
-      }),
+      complete: vi.fn(),
     },
     model: 'model' in overrides ? overrides.model : fakeModel,
     isIdle: vi.fn(() => true),

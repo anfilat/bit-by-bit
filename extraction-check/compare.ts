@@ -4,10 +4,11 @@
  * Extraction prompt comparison tool.
  *
  * Usage:
- *   node --experimental-strip-types extensions/bit-by-bit/extraction-check/compare.ts
- *     --compare    Compare current extraction results against reference (default)
- *     --update     Overwrite reference files with current extraction results
- *     <number>     Run only for the case whose filename starts with this number
+ *   npm run extraction:compare [-- <case-prefix>]
+ *     Compare current extraction results against reference (default)
+ *   npm run extraction:update [-- <case-prefix>]
+ *     Overwrite reference files with current extraction results
+ *     <case-prefix>  Run only for the case whose filename starts with this prefix
  *
  * Uses the default model from pi settings (~/.pi/agent/settings.json)
  * and API keys from pi auth (~/.pi/agent/auth.json).
@@ -16,8 +17,7 @@
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AuthStorage, ModelRegistry, SettingsManager } from '@earendil-works/pi-coding-agent';
-import { getModel } from '@earendil-works/pi-ai';
+import { ModelRegistry, ModelRuntime, SettingsManager } from '@earendil-works/pi-coding-agent';
 import { extractTasks, EXTRACTION_PROMPT } from '../src/extraction.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -107,13 +107,15 @@ async function saveReference(name: string, tasks: ExtractedTask[]): Promise<void
   await writeFile(refPath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
 }
 
-// ── Setup model + auth ───────────────────────────────────────────────────────
+// ── Setup model + registry ───────────────────────────────────────────────────
 
 async function setup() {
   const agentDir = resolve(process.env.HOME || '~', '.pi', 'agent');
   const settingsManager = SettingsManager.create(process.cwd(), agentDir);
-  const authStorage = AuthStorage.create();
-  const modelRegistry = ModelRegistry.create(authStorage);
+
+  // Reads credentials from ~/.pi/agent/auth.json by default.
+  const runtime = await ModelRuntime.create({ refreshOnCreate: false });
+  const modelRegistry = new ModelRegistry(runtime);
 
   const provider = settingsManager.getDefaultProvider();
   const modelId = settingsManager.getDefaultModel();
@@ -124,16 +126,10 @@ async function setup() {
     process.exit(1);
   }
 
-  // Try custom model first, then built-in
-  const model = modelRegistry.find(provider, modelId) ?? getModel(provider as any, modelId as any);
+  // ModelRuntime includes both custom and built-in models.
+  const model = modelRegistry.find(provider, modelId);
   if (!model) {
     console.error(red(`Error: model not found: ${provider}/${modelId}`));
-    process.exit(1);
-  }
-
-  const auth = await modelRegistry.getApiKeyAndHeaders(model);
-  if (!auth.ok) {
-    console.error(red(`Error: auth failed: ${auth.error}`));
     process.exit(1);
   }
 
@@ -141,7 +137,7 @@ async function setup() {
   console.log(dim(`Prompt: EXTRACTION_PROMPT (${EXTRACTION_PROMPT.length} chars)`));
   console.log();
 
-  return { model, auth };
+  return { model, modelRegistry };
 }
 
 // ── Compare ──────────────────────────────────────────────────────────────────
@@ -153,7 +149,7 @@ async function compareMode(filterPrefix?: string) {
     process.exit(1);
   }
 
-  const { model, auth } = await setup();
+  const { model, modelRegistry } = await setup();
 
   let totalMatch = 0;
   let totalMismatch = 0;
@@ -164,7 +160,7 @@ async function compareMode(filterPrefix?: string) {
 
     let tasks: ExtractedTask[];
     try {
-      tasks = await extractTasks(model, auth, c.input);
+      tasks = await extractTasks(model, modelRegistry, c.input);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.log(` ${red('ERROR')}`);
@@ -249,7 +245,7 @@ async function updateMode(filterPrefix?: string) {
     process.exit(1);
   }
 
-  const { model, auth } = await setup();
+  const { model, modelRegistry } = await setup();
 
   let updated = 0;
 
@@ -258,7 +254,7 @@ async function updateMode(filterPrefix?: string) {
 
     let tasks: ExtractedTask[];
     try {
-      tasks = await extractTasks(model, auth, c.input);
+      tasks = await extractTasks(model, modelRegistry, c.input);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.log(` ${red('ERROR')}: ${msg}`);

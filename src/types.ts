@@ -1,4 +1,4 @@
-import type { ExtensionContext, ModelRegistry, SessionManager } from '@earendil-works/pi-coding-agent';
+import type { ExtensionContext, SessionManager } from '@earendil-works/pi-coding-agent';
 
 export interface Task {
   index: number;
@@ -34,6 +34,3 @@ export type PiReadonlySessionManager = ExtensionContext['sessionManager'];
 
 // Extracted from pi internals because the tree node type is not exported directly.
 export type PiSessionTreeNode = ReturnType<SessionManager['getTree']>[number];
-
-// Extracted from pi internals because the auth result type is not exported directly.
-export type PiModelAuthResult = Awaited<ReturnType<ModelRegistry['getApiKeyAndHeaders']>>;
