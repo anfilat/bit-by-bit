@@ -91,7 +91,7 @@ describe('before_agent_start handler', () => {
     expect(result.message.customType).toBe('bit-by-bit-context');
     expect(result.message.display).toBe(false);
     expect(result.message.content).toBe(
-      '[bit-by-bit] You are working on a single task from a larger list.\nAll user messages on this branch refer exclusively to this task. When the user says "re-check", "fix", "explain" etc — they mean THIS task only, not the full list.\n\n## Task: Fix null pointer\n\nFix the NPE in UserService'
+      '[bit-by-bit] You are working on a single task from a larger list.\nAll user messages on this branch refer exclusively to this task. When the user says "re-check", "fix", "explain" etc — they mean THIS task only, not the full list.\n\nTasks from this list are worked on one at a time \u2014 not necessarily in order \u2014 in the same repository. Other tasks from the list may already be completed by now, so the current code is NOT the code from when this list was written. Existing edits, modified files and git changes from those tasks are expected — do not be surprised by them and do not treat them as a conflict. Verify the actual state of the code (read files, git status / git diff) before making assumptions from the task description — parts of the work may already be implemented.\n\n## Task: Fix null pointer\n\nFix the NPE in UserService'
     );
   });
 
@@ -106,7 +106,28 @@ describe('before_agent_start handler', () => {
     const result = handler({} as BeforeAgentStartEvent);
 
     expect(result.message.content).toBe(
-      '[bit-by-bit] You are working on a single task from a larger list.\nAll user messages on this branch refer exclusively to this task. When the user says "re-check", "fix", "explain" etc — they mean THIS task only, not the full list.\n\n## Task: Add tests\n\nWrite unit tests for UserService'
+      '[bit-by-bit] You are working on a single task from a larger list.\nAll user messages on this branch refer exclusively to this task. When the user says "re-check", "fix", "explain" etc — they mean THIS task only, not the full list.\n\nTasks from this list are worked on one at a time \u2014 not necessarily in order \u2014 in the same repository. Other tasks from the list may already be completed by now, so the current code is NOT the code from when this list was written. Existing edits, modified files and git changes from those tasks are expected — do not be surprised by them and do not treat them as a conflict. Verify the actual state of the code (read files, git status / git diff) before making assumptions from the task description — parts of the work may already be implemented.\n\n## Task: Add tests\n\nWrite unit tests for UserService'
+    );
+  });
+
+  it('lists already completed tasks when earlier tasks are marked done', () => {
+    const { pi } = createMockPi();
+    bitByBitExtension(pi);
+
+    const state = makeState({
+      currentTaskIndex: 1,
+      tasks: [
+        { index: 0, title: 'Fix null pointer', description: 'Fix the NPE in UserService', done: true },
+        { index: 1, title: 'Add tests', description: 'Write unit tests for UserService', done: false },
+      ],
+    });
+    activateState(pi, state);
+
+    const handler = getHandler(pi, 'before_agent_start');
+    const result = handler({} as BeforeAgentStartEvent);
+
+    expect(result.message.content).toBe(
+      '[bit-by-bit] You are working on a single task from a larger list.\nAll user messages on this branch refer exclusively to this task. When the user says "re-check", "fix", "explain" etc — they mean THIS task only, not the full list.\n\nTasks from this list are worked on one at a time \u2014 not necessarily in order \u2014 in the same repository. Other tasks from the list may already be completed by now, so the current code is NOT the code from when this list was written. Existing edits, modified files and git changes from those tasks are expected — do not be surprised by them and do not treat them as a conflict. Verify the actual state of the code (read files, git status / git diff) before making assumptions from the task description — parts of the work may already be implemented.\n\nAlready completed tasks (their changes are expected in the code):\n1. Fix null pointer\n\n## Task: Add tests\n\nWrite unit tests for UserService'
     );
   });
 });

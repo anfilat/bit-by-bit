@@ -85,7 +85,22 @@ function onBeforeAgentStart(state: BitByBitState) {
   if (!state.initialized || !state.active || !state.insideBbb) return;
 
   const task = state.tasks[state.currentTaskIndex];
-  const content = `[bit-by-bit] You are working on a single task from a larger list.\nAll user messages on this branch refer exclusively to this task. When the user says "re-check", "fix", "explain" etc — they mean THIS task only, not the full list.\n\n## Task: ${task.title}\n\n${task.description}`;
+  // Tasks are solved one at a time (not necessarily in order) in one repo, so the code the task
+  // list was written against has usually changed by the time a task starts. Warn the assistant
+  // about prior work to keep it from being surprised by existing edits, and list tasks marked done.
+  const doneTasks = state.tasks.filter(t => t.done);
+  const doneTasksSection = doneTasks.length
+    ? `\nAlready completed tasks (their changes are expected in the code):\n${doneTasks.map(t => `${t.index + 1}. ${t.title}`).join('\n')}\n`
+    : '';
+
+  const content = `[bit-by-bit] You are working on a single task from a larger list.
+All user messages on this branch refer exclusively to this task. When the user says "re-check", "fix", "explain" etc — they mean THIS task only, not the full list.
+
+Tasks from this list are worked on one at a time — not necessarily in order — in the same repository. Other tasks from the list may already be completed by now, so the current code is NOT the code from when this list was written. Existing edits, modified files and git changes from those tasks are expected — do not be surprised by them and do not treat them as a conflict. Verify the actual state of the code (read files, git status / git diff) before making assumptions from the task description — parts of the work may already be implemented.
+${doneTasksSection}
+## Task: ${task.title}
+
+${task.description}`;
 
   return {
     message: {
