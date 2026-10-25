@@ -24,7 +24,7 @@ pi install npm:@anfilat/bit-by-bit
 | Command | Description |
 |---------|-------------|
 | `/bit-by-bit` | Extract tasks from last assistant message, start first task |
-| `/bit-by-bit choose` | Show task list, switch to chosen task |
+| `/bit-by-bit list` | Show task list, switch to chosen task |
 | `/bit-by-bit next` | Go to next task |
 | `/bit-by-bit prev` | Go to previous task |
 | `/bit-by-bit done` | Mark current task as done |

@@ -21,11 +21,7 @@ export function formatTaskItems(state: BitByBitState): SelectItem[] {
   });
 }
 
-export async function handleChoose(
-  state: BitByBitState,
-  ctx: ExtensionCommandContext,
-  pi: ExtensionAPI
-): Promise<void> {
+export async function handleList(state: BitByBitState, ctx: ExtensionCommandContext, pi: ExtensionAPI): Promise<void> {
   if (!(await guard(state, ctx))) return;
 
   const items = formatTaskItems(state);

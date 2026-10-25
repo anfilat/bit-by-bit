@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { formatTaskItems } from '../../src/commands/choose.js';
+import { formatTaskItems } from '../../src/commands/list.js';
 import { setupExtension, makeCtx, activateState } from './helpers.js';
 import type { BitByBitState } from '../../src/types.js';
 import { MESSAGE_TYPE } from '../../src/constants.js';
@@ -103,12 +103,12 @@ describe('formatTaskItems', () => {
   });
 });
 
-describe('handleChoose', () => {
+describe('handleList', () => {
   it('notifies "not active" when state is inactive', async () => {
     const { cmd, notify } = setupExtension();
     const ctx = makeCtx({ notify });
 
-    await cmd.handler('choose', ctx);
+    await cmd.handler('list', ctx);
 
     expect(notify).toHaveBeenCalledWith('bit-by-bit: not active', 'warning');
   });
@@ -122,7 +122,7 @@ describe('handleChoose', () => {
       { title: 'Task B', description: 'Desc B' },
     ]);
 
-    // Use fresh ctx for choose to avoid navigateTree calls from activateState
+    // Use fresh ctx for list to avoid navigateTree calls from activateState
     const ctx2 = makeCtx({ notify });
     ctx2.ui.custom = vi.fn().mockResolvedValue(null);
 
@@ -130,7 +130,7 @@ describe('handleChoose', () => {
     appendEntry.mockClear();
     sendMessage.mockClear();
 
-    await cmd.handler('choose', ctx2);
+    await cmd.handler('list', ctx2);
 
     // No branch creation, no navigation, no notify about switching
     expect(appendEntry).not.toHaveBeenCalled();
@@ -138,7 +138,7 @@ describe('handleChoose', () => {
     expect(ctx2.navigateTree).not.toHaveBeenCalled();
   });
 
-  it('notifies "already on this task" when choosing current task and insideBbb', async () => {
+  it('notifies "already on this task" when selecting current task and insideBbb', async () => {
     const { cmd, notify, appendEntry, sendMessage } = setupExtension();
     const ctx = makeCtx({ notify });
 
@@ -154,7 +154,7 @@ describe('handleChoose', () => {
     appendEntry.mockClear();
     sendMessage.mockClear();
 
-    await cmd.handler('choose', ctx);
+    await cmd.handler('list', ctx);
 
     expect(notify).toHaveBeenCalledWith('bit-by-bit: already on this task', 'info');
     expect(appendEntry).not.toHaveBeenCalled();
@@ -181,7 +181,7 @@ describe('handleChoose', () => {
       }
     );
 
-    // Choose task A (index 0) — same as currentTaskIndex, but insideBbb is false
+    // Select task A (index 0) — same as currentTaskIndex, but insideBbb is false
     const ctx2 = makeCtx({ notify });
     ctx2.ui.custom = vi.fn().mockResolvedValue('0');
     ctx2.navigateTree = vi.fn().mockResolvedValue({ cancelled: false });
@@ -190,14 +190,14 @@ describe('handleChoose', () => {
     appendEntry.mockClear();
     sendMessage.mockClear();
 
-    await cmd.handler('choose', ctx2);
+    await cmd.handler('list', ctx2);
 
     // Should NOT say "already on this task" — should switch
     expect(notify).not.toHaveBeenCalledWith('bit-by-bit: already on this task', 'info');
     expect(ctx2.navigateTree).toHaveBeenCalled();
   });
 
-  it('switches to existing branch when choosing a visited task', async () => {
+  it('switches to existing branch when selecting a visited task', async () => {
     const { cmd, notify, appendEntry, sendMessage } = setupExtension();
     const ctx = makeCtx({ notify });
 
@@ -216,7 +216,7 @@ describe('handleChoose', () => {
     ctx2.navigateTree = vi.fn().mockResolvedValue({ cancelled: false });
     await cmd.handler('prev', ctx2);
 
-    // Now choose task B (index 1) — it has branchLeafId 'leaf-b'
+    // Now select task B (index 1) — it has branchLeafId 'leaf-b'
     const ctx3 = makeCtx({ notify });
     ctx3.ui.custom = vi.fn().mockResolvedValue('1');
     ctx3.navigateTree = vi.fn().mockResolvedValue({ cancelled: false });
@@ -225,7 +225,7 @@ describe('handleChoose', () => {
     appendEntry.mockClear();
     sendMessage.mockClear();
 
-    await cmd.handler('choose', ctx3);
+    await cmd.handler('list', ctx3);
 
     // Should navigate to existing branch, not create new
     expect(ctx3.navigateTree).toHaveBeenCalledWith('leaf-b', { summarize: false });
@@ -234,7 +234,7 @@ describe('handleChoose', () => {
     expect(notify).toHaveBeenCalledWith('bit-by-bit: switched to task 2', 'info');
   });
 
-  it('creates new branch when choosing unvisited task', async () => {
+  it('creates new branch when selecting unvisited task', async () => {
     const { cmd, notify, appendEntry, sendMessage, setLabel } = setupExtension();
     const ctx = makeCtx({ notify });
 
@@ -244,7 +244,7 @@ describe('handleChoose', () => {
       { title: 'Task C', description: 'Desc C' },
     ]);
 
-    // choose task C (index 2)
+    // select task C (index 2)
     const ctx2 = makeCtx({ notify });
     ctx2.ui.custom = vi.fn().mockResolvedValue('2');
     ctx2.sessionManager.getLeafId = vi.fn().mockReturnValue('leaf-c');
@@ -254,7 +254,7 @@ describe('handleChoose', () => {
     sendMessage.mockClear();
     setLabel.mockClear();
 
-    await cmd.handler('choose', ctx2);
+    await cmd.handler('list', ctx2);
 
     // Should navigate to root first
     expect(ctx2.navigateTree).toHaveBeenCalledWith('leaf-root', { summarize: false });
@@ -290,7 +290,7 @@ describe('handleChoose', () => {
       { title: 'Task B', description: 'Desc B' },
     ]);
 
-    // Choose task B (index 1) — unvisited, so it tries to create a new branch
+    // Select task B (index 1) — unvisited, so it tries to create a new branch
     const ctx2 = makeCtx({ notify });
     ctx2.ui.custom = vi.fn().mockResolvedValue('1');
     ctx2.navigateTree = vi.fn().mockResolvedValue({ cancelled: true });
@@ -299,7 +299,7 @@ describe('handleChoose', () => {
     appendEntry.mockClear();
     sendMessage.mockClear();
 
-    await cmd.handler('choose', ctx2);
+    await cmd.handler('list', ctx2);
 
     expect(notify).toHaveBeenCalledWith('bit-by-bit: navigation cancelled', 'info');
     // Should NOT have created branch or sent message

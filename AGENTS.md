@@ -27,7 +27,7 @@
 | `status.ts` | Status bar formatting and updates |
 | `write.ts` | Progress document generation (fast path + LLM-summarized path) |
 | `commands/start.ts` | Extract tasks from last assistant message, start first |
-| `commands/choose.ts` | Show task list with SelectList, switch to chosen |
+| `commands/list.ts` | Show task list with SelectList, switch to chosen |
 | `commands/next-prev.ts` | Navigate to next/previous task |
 | `commands/switch-task.ts` | Core navigation — fork branches, send task description |
 | `commands/toggle-done.ts` | Mark/unmark task as done |
@@ -41,7 +41,7 @@
 | Command | Description |
 |---------|-------------|
 | `/bit-by-bit` (or `start`) | Extract tasks from last assistant message, start first task |
-| `/bit-by-bit choose` | Show task list, switch to chosen task |
+| `/bit-by-bit list` | Show task list, switch to chosen task |
 | `/bit-by-bit next` | Go to next task |
 | `/bit-by-bit prev` | Go to previous task |
 | `/bit-by-bit done` | Mark current task as done |

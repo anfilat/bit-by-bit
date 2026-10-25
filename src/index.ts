@@ -6,7 +6,7 @@
  *
  * Usage:
  *   /bit-by-bit           — extract tasks from last assistant message, start first
- *   /bit-by-bit choose    — show task list, switch to selected
+ *   /bit-by-bit list      — show task list, switch to selected
  *   /bit-by-bit next      — go to next task
  *   /bit-by-bit prev      — go to previous task
  *   /bit-by-bit done      — mark current task as done
@@ -30,7 +30,7 @@ import { updateStatus } from './status.js';
 import { findTaskByLeaf } from './branching.js';
 
 import { handleStart } from './commands/start.js';
-import { handleChoose } from './commands/choose.js';
+import { handleList } from './commands/list.js';
 import { handleNext, handlePrev } from './commands/next-prev.js';
 import { handleDone, handleUndone } from './commands/toggle-done.js';
 import { handleWrite } from './commands/write.js';
@@ -39,7 +39,7 @@ import { handleResume } from './commands/resume.js';
 
 // ─── Subcommand parsing ────────────────────────────────────────────────────
 
-const SUBCOMMANDS = ['start', 'choose', 'next', 'prev', 'done', 'undone', 'write', 'off', 'resume'] as const;
+const SUBCOMMANDS = ['start', 'list', 'next', 'prev', 'done', 'undone', 'write', 'off', 'resume'] as const;
 type Subcommand = (typeof SUBCOMMANDS)[number];
 
 function parseSubcommand(args: string): Subcommand | null {
@@ -57,7 +57,7 @@ type HandlerFn = (state: BitByBitState, ctx: ExtensionCommandContext, pi: Extens
 
 const HANDLERS: Record<Subcommand, HandlerFn> = {
   start: handleStart,
-  choose: handleChoose,
+  list: handleList,
   next: handleNext,
   prev: handlePrev,
   done: handleDone,

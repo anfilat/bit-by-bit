@@ -25,7 +25,7 @@ describe('bit-by-bit extension integration', () => {
     const all = cmd.getArgumentCompletions!('') as any[];
     expect(all).not.toBeNull();
     expect(all!.map((i: any) => i.value).sort()).toEqual(
-      ['start', 'choose', 'next', 'prev', 'done', 'undone', 'write', 'off', 'resume'].sort()
+      ['start', 'list', 'next', 'prev', 'done', 'undone', 'write', 'off', 'resume'].sort()
     );
 
     // Filtered by prefix
