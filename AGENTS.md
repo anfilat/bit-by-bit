@@ -4,7 +4,7 @@
 
 **bit-by-bit** — a [Pi](https://github.com/earendil-works/pi) extension for step-by-step task management. It extracts numbered/bulleted items from LLM output and works on them one at a time in isolated session tree branches.
 
-- **Tests:** `npm test` (runs `vitest run`). Tests live in `test/`. Test framework: **vitest 4.x** (ESM-native, zero config). Config in `vitest.config.ts`.
+- **Tests:** `npm test` (runs `vitest run`). Tests live in `test/`. Test framework: **vitest 5.x** (ESM-native, zero config). Config in `vitest.config.ts`.
 - **ESM only** (`"type": "module"` in `package.json`). Import paths need `.js` extensions (e.g. `./state.js`).
 - **TypeScript:** `npx tsc --noEmit` for type checking. Config in `tsconfig.json` (strict mode, ES2022 / Node16).
 - **Peer dependencies** (not bundled): `@earendil-works/pi-ai`, `@earendil-works/pi-coding-agent`, `@earendil-works/pi-tui`, `@sinclair/typebox`.
