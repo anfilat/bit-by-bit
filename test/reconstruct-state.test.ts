@@ -206,7 +206,7 @@ describe('reconstructState', () => {
     expect(state.tasks[1].branchLeafId).toBe(task1Assistant);
   });
 
-  it('sets currentTaskIndex when current leaf is on a task branch', () => {
+  it('sets currentTaskIndexes when current leaf is on a task branch', () => {
     const sm = SessionManager.inMemory();
     const rootEntryId = assistantMsg(sm, 'Here is a review...');
     const { task1Assistant } = buildTwoBranchTree(sm, rootEntryId);
@@ -216,7 +216,7 @@ describe('reconstructState', () => {
 
     const state = reconstructState(sm)!;
     expect(state.insideBbb).toBe(true);
-    expect(state.currentTaskIndex).toBe(1);
+    expect(state.currentTaskIndexes).toEqual([1]);
   });
 
   it('sets insideBbb=false when current leaf is outside task area', () => {
@@ -234,7 +234,7 @@ describe('reconstructState', () => {
 
     const state = reconstructState(sm)!;
     expect(state.insideBbb).toBe(false);
-    expect(state.currentTaskIndex).toBe(0); // default, not changed
+    expect(state.currentTaskIndexes).toEqual([]); // default, not changed
   });
 
   it('fully reconstructs state with branches, done entries, and current task', () => {
@@ -258,7 +258,7 @@ describe('reconstructState', () => {
     expect(state.tasks[1].branchLeafId).toBeDefined();
     // Current leaf is on task 1's branch
     expect(state.insideBbb).toBe(true);
-    expect(state.currentTaskIndex).toBe(1);
+    expect(state.currentTaskIndexes).toEqual([1]);
   });
 
   it('returns insideBbb=false and branchLeafId=undefined when no tree exists', () => {
@@ -269,7 +269,7 @@ describe('reconstructState', () => {
 
     const state = reconstructState(sm)!;
     expect(state.insideBbb).toBe(false);
-    expect(state.currentTaskIndex).toBe(0);
+    expect(state.currentTaskIndexes).toEqual([]);
     expect(state.tasks[0].branchLeafId).toBeUndefined();
     expect(state.tasks[1].branchLeafId).toBeUndefined();
     expect(state.tasks[2].branchLeafId).toBeUndefined();
@@ -305,7 +305,7 @@ describe('reconstructState', () => {
     expect(state.tasks[2].branchLeafId).toBeUndefined();
     // Current leaf is on task 0's branch
     expect(state.insideBbb).toBe(true);
-    expect(state.currentTaskIndex).toBe(0);
+    expect(state.currentTaskIndexes).toEqual([0]);
   });
 
   it('preserves tree branches when active=false after off', () => {
@@ -323,7 +323,7 @@ describe('reconstructState', () => {
     expect(state.tasks[1].branchLeafId).toBeDefined();
     // Current leaf is on task 1's branch (off entry is a child of task1's last entry)
     expect(state.insideBbb).toBe(true);
-    expect(state.currentTaskIndex).toBe(1);
+    expect(state.currentTaskIndexes).toEqual([1]);
   });
 
   it('reconstructs tree branches from last init when multiple inits exist', () => {
@@ -352,7 +352,7 @@ describe('reconstructState', () => {
     expect(state.tasks[0].branchLeafId).toBe(newTask0Leaf);
     expect(state.tasks[1].branchLeafId).toBeUndefined();
     expect(state.insideBbb).toBe(true);
-    expect(state.currentTaskIndex).toBe(0);
+    expect(state.currentTaskIndexes).toEqual([0]);
   });
 
   it('ignores done entry with out-of-bounds taskIndex', () => {
@@ -400,5 +400,73 @@ describe('reconstructState', () => {
     expect(state.tasks[2].done).toBe(false);
     // Stale off from first session must NOT deactivate the new session
     expect(state.active).toBe(true);
+  });
+
+  describe('task groups', () => {
+    function groupBranch(sm: SessionManager, rootEntryId: string, taskIndexes: number[]) {
+      sm.branch(rootEntryId);
+      userMsg(sm, 'Group description');
+      sm.appendCustomEntry(ENTRY_TYPE.BRANCH, { rootEntryId, taskIndexes });
+      return assistantMsg(sm, 'Working on the group...');
+    }
+
+    it('reconstructs groupBranchLeafIds for group branches', () => {
+      const sm = SessionManager.inMemory();
+      const rootEntryId = assistantMsg(sm, 'Here is a review...');
+      const tasks = makeTasks(3);
+      initEntry(sm, rootEntryId, tasks);
+
+      const groupLeaf = groupBranch(sm, rootEntryId, [1, 2]);
+
+      const state = reconstructState(sm)!;
+      expect(state.groupBranchLeafIds.get('2+3')).toBe(groupLeaf);
+      // Group members keep their individual branchLeafId undefined
+      expect(state.tasks[1].branchLeafId).toBeUndefined();
+      expect(state.tasks[2].branchLeafId).toBeUndefined();
+    });
+
+    it('sets currentTaskIndexes when current leaf is on a group branch', () => {
+      const sm = SessionManager.inMemory();
+      const rootEntryId = assistantMsg(sm, 'Here is a review...');
+      const tasks = makeTasks(3);
+      initEntry(sm, rootEntryId, tasks);
+
+      groupBranch(sm, rootEntryId, [0, 2]);
+
+      const state = reconstructState(sm)!;
+      expect(state.insideBbb).toBe(true);
+      expect(state.currentTaskIndexes).toEqual([0, 2]);
+    });
+
+    it('still reads legacy single taskIndex branch entries as one-element groups', () => {
+      const sm = SessionManager.inMemory();
+      const rootEntryId = assistantMsg(sm, 'Here is a review...');
+      const tasks = makeTasks(2);
+      initEntry(sm, rootEntryId, tasks);
+
+      // Legacy entry format: taskIndex instead of taskIndexes
+      sm.branch(rootEntryId);
+      userMsg(sm, 'Task 0 description');
+      sm.appendCustomEntry(ENTRY_TYPE.BRANCH, { rootEntryId, taskIndex: 0 });
+      const task0Leaf = assistantMsg(sm, 'Working on task 0...');
+
+      const state = reconstructState(sm)!;
+      expect(state.tasks[0].branchLeafId).toBe(task0Leaf);
+      expect(state.groupBranchLeafIds.size).toBe(0);
+      expect(state.insideBbb).toBe(true);
+      expect(state.currentTaskIndexes).toEqual([0]);
+    });
+
+    it('ignores group branches referencing out-of-bounds tasks', () => {
+      const sm = SessionManager.inMemory();
+      const rootEntryId = assistantMsg(sm, 'Here is a review...');
+      const tasks = makeTasks(2);
+      initEntry(sm, rootEntryId, tasks);
+
+      groupBranch(sm, rootEntryId, [1, 99]);
+
+      const state = reconstructState(sm)!;
+      expect(state.groupBranchLeafIds.size).toBe(0);
+    });
   });
 });

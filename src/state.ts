@@ -7,6 +7,7 @@ import type {
   PiSessionTreeNode,
 } from './types.js';
 import { ENTRY_TYPE } from './constants.js';
+import { groupKey } from './task-group.js';
 import { findBranchInSubtree, findTaskByLeaf } from './branching.js';
 
 export function reconstructState(sm: PiReadonlySessionManager): BitByBitState | null {
@@ -57,24 +58,31 @@ export function reconstructState(sm: PiReadonlySessionManager): BitByBitState | 
     }
   }
 
-  // Compute branchLeafId for each task by traversing tree children of rootEntryId
+  // Compute branchLeafId / groupBranchLeafIds by traversing tree children of rootEntryId
+  const groupBranchLeafIds = new Map<string, string>();
   const rootChildren = findTreeNode(sm.getTree(), rootEntryId)?.children ?? [];
   for (const child of rootChildren) {
     const result = findBranchInSubtree(child, rootEntryId);
-    if (result && result.taskIndex >= 0 && result.taskIndex < tasks.length) {
-      tasks[result.taskIndex].branchLeafId = result.leafId;
+    if (!result) continue;
+
+    const inBounds = (i: number) => i >= 0 && i < tasks.length;
+    if (result.taskIndexes.length === 1 && inBounds(result.taskIndexes[0])) {
+      tasks[result.taskIndexes[0]].branchLeafId = result.leafId;
+    } else if (result.taskIndexes.every(inBounds)) {
+      groupBranchLeafIds.set(groupKey(result.taskIndexes), result.leafId);
     }
   }
 
-  // Compute currentTaskIndex and insideBbb from the current leaf
+  // Compute currentTaskIndexes and insideBbb from the current leaf
   const state: BitByBitState = {
     initialized: true,
     active,
     insideBbb: false,
     skipSessionTree: false,
     rootEntryId,
-    currentTaskIndex: 0,
+    currentTaskIndexes: [],
     tasks,
+    groupBranchLeafIds,
   };
 
   const currentLeafId = sm.getLeafId();
@@ -82,7 +90,7 @@ export function reconstructState(sm: PiReadonlySessionManager): BitByBitState | 
     const taskOnCurrentBranch = findTaskByLeaf(state, currentLeafId, sm);
     if (taskOnCurrentBranch !== null) {
       state.insideBbb = true;
-      state.currentTaskIndex = taskOnCurrentBranch;
+      state.currentTaskIndexes = taskOnCurrentBranch;
     }
   }
 

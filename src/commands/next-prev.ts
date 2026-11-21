@@ -1,17 +1,21 @@
 import type { ExtensionAPI, ExtensionCommandContext } from '@earendil-works/pi-coding-agent';
 import type { BitByBitState } from '../types.js';
 import { updateStatus } from '../status.js';
-import { switchToTask } from './switch-task.js';
+import { switchToTasks } from './switch-task.js';
 import { guard } from './guard.js';
 
 export function resolveNextTask(state: BitByBitState): number | null {
-  const next = state.currentTaskIndex + 1;
+  if (state.currentTaskIndexes.length === 0) return null;
+  const last = Math.max(...state.currentTaskIndexes);
+  const next = last + 1;
   if (next >= state.tasks.length) return null;
   return next;
 }
 
 export function resolvePrevTask(state: BitByBitState): number | null {
-  const prev = state.currentTaskIndex - 1;
+  if (state.currentTaskIndexes.length === 0) return null;
+  const first = Math.min(...state.currentTaskIndexes);
+  const prev = first - 1;
   if (prev < 0) return null;
   return prev;
 }
@@ -35,13 +39,14 @@ async function navigateAdjacent(
     return;
   }
 
-  const navigated = await switchToTask(state, targetIndex, ctx, pi);
+  // next/prev always land on a single task right after/before the current group
+  const navigated = await switchToTasks(state, [targetIndex], ctx, pi);
   if (!navigated) {
     ctx.ui.notify('bit-by-bit: navigation cancelled', 'info');
     return;
   }
 
-  state.currentTaskIndex = targetIndex;
+  state.currentTaskIndexes = [targetIndex];
   state.insideBbb = true;
 
   updateStatus(state, ctx);

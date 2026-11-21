@@ -20,10 +20,10 @@ export async function handleResume(
   state.insideBbb = false;
   const leafId = ctx.sessionManager.getLeafId();
   if (leafId) {
-    const taskIndex = findTaskByLeaf(state, leafId, ctx.sessionManager);
-    if (taskIndex !== null) {
+    const taskIndexes = findTaskByLeaf(state, leafId, ctx.sessionManager);
+    if (taskIndexes !== null) {
       state.insideBbb = true;
-      state.currentTaskIndex = taskIndex;
+      state.currentTaskIndexes = taskIndexes;
     }
   }
 

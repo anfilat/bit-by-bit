@@ -13,13 +13,17 @@ export async function handleWrite(
 ): Promise<void> {
   if (!(await guard(state, ctx, { requireInsideBbb: true }))) return;
 
-  const task = state.tasks[state.currentTaskIndex];
+  const tasks = state.currentTaskIndexes.map(i => state.tasks[i]).filter(Boolean);
+  if (tasks.length === 0) {
+    ctx.ui.notify('bit-by-bit: not on a bit-by-bit branch', 'warning');
+    return;
+  }
   const branch = ctx.sessionManager.getBranch();
 
   let document: string;
 
   if (!hasDiscussion(branch)) {
-    document = buildDocumentNoDiscussion(task);
+    document = buildDocumentNoDiscussion(tasks);
   } else {
     if (!ctx.model) {
       ctx.ui.notify('bit-by-bit: no model selected', 'error');
@@ -31,7 +35,7 @@ export async function handleWrite(
       loader.onAbort = () => done(null);
 
       const doSummarize = async () => {
-        return buildDocumentWithDiscussion(ctx.model!, ctx.modelRegistry, task, branch, loader.signal);
+        return buildDocumentWithDiscussion(ctx.model!, ctx.modelRegistry, tasks, branch, loader.signal);
       };
 
       doSummarize()
@@ -53,7 +57,7 @@ export async function handleWrite(
   }
 
   // Write file
-  const fileName = buildFileName(task);
+  const fileName = buildFileName(tasks);
   const dir = resolve(ctx.cwd, 'bit-by-bit');
   await mkdir(dir, { recursive: true });
   const filePath = resolve(dir, fileName);

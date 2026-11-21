@@ -5,20 +5,25 @@ import type { BitByBitState } from '../../src/types.js';
 import { MESSAGE_TYPE } from '../../src/constants.js';
 
 describe('formatTaskItems', () => {
-  function makeState(tasks: { title: string; done: boolean }[], currentIndex: number): BitByBitState {
+  function makeState(
+    tasks: { title: string; done: boolean }[],
+    currentIndexes: number[],
+    insideBbb = true
+  ): BitByBitState {
     return {
       initialized: true,
       active: true,
-      insideBbb: true,
+      insideBbb,
       skipSessionTree: false,
       rootEntryId: 'root',
-      currentTaskIndex: currentIndex,
+      currentTaskIndexes: currentIndexes,
       tasks: tasks.map((t, i) => ({
         index: i,
         title: t.title,
         description: `Desc ${i + 1}`,
         done: t.done,
       })),
+      groupBranchLeafIds: new Map(),
     };
   }
 
@@ -29,15 +34,15 @@ describe('formatTaskItems', () => {
         { title: 'Add tests', done: true },
         { title: 'Refactor module', done: false },
       ],
-      0
+      [0]
     );
 
     const result = formatTaskItems(state);
 
     expect(result).toEqual([
-      { value: '0', label: '✗ 1. Fix null pointer ←' },
-      { value: '1', label: '✓ 2. Add tests' },
-      { value: '2', label: '✗ 3. Refactor module' },
+      { value: '0', label: '[ ] ✗ 1. Fix null pointer ←' },
+      { value: '1', label: '[ ] ✓ 2. Add tests' },
+      { value: '2', label: '[ ] ✗ 3. Refactor module' },
     ]);
   });
 
@@ -47,29 +52,49 @@ describe('formatTaskItems', () => {
         { title: 'Task A', done: true },
         { title: 'Task B', done: true },
       ],
-      1
+      [1]
     );
 
     const result = formatTaskItems(state);
 
     expect(result).toEqual([
-      { value: '0', label: '✓ 1. Task A' },
-      { value: '1', label: '✓ 2. Task B ←' },
+      { value: '0', label: '[ ] ✓ 1. Task A' },
+      { value: '1', label: '[ ] ✓ 2. Task B ←' },
     ]);
   });
 
-  it('formats current task as done with both ✓ and ←', () => {
+  it('shows checkbox marks for marked tasks', () => {
     const state = makeState(
       [
         { title: 'Task A', done: false },
-        { title: 'Task B', done: true },
+        { title: 'Task B', done: false },
+        { title: 'Task C', done: false },
       ],
-      1
+      [0]
+    );
+
+    const result = formatTaskItems(state, new Set([1, 2]));
+
+    expect(result[0].label).toBe('[ ] ✗ 1. Task A ←');
+    expect(result[1].label).toBe('[x] ✗ 2. Task B');
+    expect(result[2].label).toBe('[x] ✗ 3. Task C');
+  });
+
+  it('marks all members of the current group with ←', () => {
+    const state = makeState(
+      [
+        { title: 'Task A', done: false },
+        { title: 'Task B', done: false },
+        { title: 'Task C', done: false },
+      ],
+      [0, 2]
     );
 
     const result = formatTaskItems(state);
 
-    expect(result[1].label).toBe('✓ 2. Task B ←');
+    expect(result[0].label).toContain('←');
+    expect(result[1].label).not.toContain('←');
+    expect(result[2].label).toContain('←');
   });
 
   it('uses task index as value', () => {
@@ -78,7 +103,7 @@ describe('formatTaskItems', () => {
         { title: 'Task A', done: false },
         { title: 'Task B', done: false },
       ],
-      0
+      [0]
     );
 
     const result = formatTaskItems(state);
@@ -92,14 +117,14 @@ describe('formatTaskItems', () => {
         { title: 'Task A', done: false },
         { title: 'Task B', done: false },
       ],
-      0
+      [0],
+      false
     );
-    state.insideBbb = false;
 
     const result = formatTaskItems(state);
 
-    expect(result[0].label).toBe('✗ 1. Task A');
-    expect(result[1].label).toBe('✗ 2. Task B');
+    expect(result[0].label).toBe('[ ] ✗ 1. Task A');
+    expect(result[1].label).toBe('[ ] ✗ 2. Task B');
   });
 });
 
@@ -148,7 +173,7 @@ describe('handleList', () => {
     ]);
 
     // custom returns index of current task (0) — must be set AFTER activateState
-    ctx.ui.custom = vi.fn().mockResolvedValue('0');
+    ctx.ui.custom = vi.fn().mockResolvedValue([0]);
 
     notify.mockClear();
     appendEntry.mockClear();
@@ -160,7 +185,7 @@ describe('handleList', () => {
     expect(appendEntry).not.toHaveBeenCalled();
   });
 
-  it('allows selecting same currentTaskIndex when insideBbb is false', async () => {
+  it('allows selecting same currentTaskIndexes when insideBbb is false', async () => {
     const { cmd, notify, appendEntry, sendMessage, pi } = setupExtension();
     const ctx = makeCtx({ notify });
 
@@ -181,9 +206,9 @@ describe('handleList', () => {
       }
     );
 
-    // Select task A (index 0) — same as currentTaskIndex, but insideBbb is false
+    // Select task A (index 0) — same as currentTaskIndexes, but insideBbb is false
     const ctx2 = makeCtx({ notify });
-    ctx2.ui.custom = vi.fn().mockResolvedValue('0');
+    ctx2.ui.custom = vi.fn().mockResolvedValue([0]);
     ctx2.navigateTree = vi.fn().mockResolvedValue({ cancelled: false });
 
     notify.mockClear();
@@ -218,7 +243,7 @@ describe('handleList', () => {
 
     // Now select task B (index 1) — it has branchLeafId 'leaf-b'
     const ctx3 = makeCtx({ notify });
-    ctx3.ui.custom = vi.fn().mockResolvedValue('1');
+    ctx3.ui.custom = vi.fn().mockResolvedValue([1]);
     ctx3.navigateTree = vi.fn().mockResolvedValue({ cancelled: false });
 
     notify.mockClear();
@@ -246,7 +271,7 @@ describe('handleList', () => {
 
     // select task C (index 2)
     const ctx2 = makeCtx({ notify });
-    ctx2.ui.custom = vi.fn().mockResolvedValue('2');
+    ctx2.ui.custom = vi.fn().mockResolvedValue([2]);
     ctx2.sessionManager.getLeafId = vi.fn().mockReturnValue('leaf-c');
 
     notify.mockClear();
@@ -262,7 +287,7 @@ describe('handleList', () => {
     // Should create branch entry
     expect(appendEntry).toHaveBeenCalledWith('bit-by-bit-branch', {
       rootEntryId: 'leaf-root',
-      taskIndex: 2,
+      taskIndexes: [2],
     });
 
     // Should send task description
@@ -281,7 +306,76 @@ describe('handleList', () => {
     expect(notify).toHaveBeenCalledWith('bit-by-bit: switched to task 3', 'info');
   });
 
-  it('does not update currentTaskIndex when navigateTree is cancelled', async () => {
+  it('creates a group branch when multiple tasks are selected', async () => {
+    const { cmd, notify, appendEntry, sendMessage, setLabel } = setupExtension();
+    const ctx = makeCtx({ notify });
+
+    await activateState(cmd, ctx, [
+      { title: 'Task A', description: 'Desc A' },
+      { title: 'Task B', description: 'Desc B' },
+      { title: 'Task C', description: 'Desc C' },
+    ]);
+
+    // select tasks B and C
+    const ctx2 = makeCtx({ notify });
+    ctx2.ui.custom = vi.fn().mockResolvedValue([2, 1]);
+    ctx2.sessionManager.getLeafId = vi.fn().mockReturnValue('leaf-group');
+
+    notify.mockClear();
+    appendEntry.mockClear();
+    sendMessage.mockClear();
+    setLabel.mockClear();
+
+    await cmd.handler('list', ctx2);
+
+    expect(appendEntry).toHaveBeenCalledWith('bit-by-bit-branch', {
+      rootEntryId: 'leaf-root',
+      taskIndexes: [1, 2],
+    });
+
+    expect(sendMessage).toHaveBeenCalledWith(
+      {
+        customType: MESSAGE_TYPE.TASK_DESCRIPTION,
+        content: '**Tasks 2,3/3**\n\n### Task 2: Task B\n\nDesc B\n\n### Task 3: Task C\n\nDesc C',
+        display: true,
+      },
+      { triggerTurn: false }
+    );
+
+    expect(setLabel).toHaveBeenCalledWith('leaf-group', 'bbb:2+3:Task B');
+    expect(notify).toHaveBeenCalledWith('bit-by-bit: switched to tasks 2,3', 'info');
+  });
+
+  it('notifies "already on these tasks" when selecting the current group', async () => {
+    const { cmd, notify, appendEntry, sendMessage } = setupExtension();
+    const ctx = makeCtx({ notify });
+
+    await activateState(cmd, ctx, [
+      { title: 'Task A', description: 'Desc A' },
+      { title: 'Task B', description: 'Desc B' },
+    ]);
+
+    // Manually move onto group {0,1} via list selection
+    const ctx2 = makeCtx({ notify });
+    ctx2.ui.custom = vi.fn().mockResolvedValue([0, 1]);
+    ctx2.sessionManager.getLeafId = vi.fn().mockReturnValue('leaf-group');
+    await cmd.handler('list', ctx2);
+
+    // Select the same group again
+    const ctx3 = makeCtx({ notify });
+    ctx3.ui.custom = vi.fn().mockResolvedValue([1, 0]);
+
+    notify.mockClear();
+    appendEntry.mockClear();
+    sendMessage.mockClear();
+
+    await cmd.handler('list', ctx3);
+
+    expect(notify).toHaveBeenCalledWith('bit-by-bit: already on these tasks', 'info');
+    expect(appendEntry).not.toHaveBeenCalled();
+  });
+
+  it('does not update currentTaskIndexes when navigateTree is cancelled', async () => {
     const { cmd, notify, appendEntry, sendMessage } = setupExtension();
     const ctx = makeCtx({ notify });
 
@@ -292,7 +386,7 @@ describe('handleList', () => {
 
     // Select task B (index 1) — unvisited, so it tries to create a new branch
     const ctx2 = makeCtx({ notify });
-    ctx2.ui.custom = vi.fn().mockResolvedValue('1');
+    ctx2.ui.custom = vi.fn().mockResolvedValue([1]);
     ctx2.navigateTree = vi.fn().mockResolvedValue({ cancelled: true });
 
     notify.mockClear();

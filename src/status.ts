@@ -11,13 +11,20 @@ export function formatStatus(state: BitByBitState): string | undefined {
     return `bit-by-bit: ${total}(✓${done}) | ⚠ Outside task area`;
   }
 
-  const current = state.tasks[state.currentTaskIndex];
-  const prefix = `bit-by-bit: ${state.currentTaskIndex + 1}/${total}(✓${done}) | ${current?.done ? '✓' : '✗'} ▸ `;
+  const indexes = state.currentTaskIndexes;
+  const current = state.tasks[indexes[0]];
+  const numbers = indexes.map(i => i + 1).join(',');
+  const allDone = indexes.length > 0 && indexes.every(i => state.tasks[i]?.done);
+  const groupSuffix = indexes.length > 1 ? ` +${indexes.length - 1}` : '';
+  const prefix = `bit-by-bit: ${numbers}/${total}(✓${done}) | ${allDone ? '✓' : '✗'} ▸ `;
   const maxTitleLen = 30;
   const cols = process.stdout.columns ?? 80;
   const available = Math.min(maxTitleLen, Math.max(0, cols - prefix.length - 2));
   const rawTitle = current?.title ?? '?';
-  const title = rawTitle.length > available ? rawTitle.slice(0, available - 1) + '…' : rawTitle;
+  const title =
+    rawTitle.length + groupSuffix.length > available
+      ? rawTitle.slice(0, Math.max(0, available - groupSuffix.length - 1)) + '…' + groupSuffix
+      : rawTitle + groupSuffix;
   return `${prefix}${title}`;
 }
 

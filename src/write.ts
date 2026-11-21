@@ -136,11 +136,34 @@ Preserve all technical details needed to continue the work in a new session.
 Use plain text, not markdown headers.`;
 
 /**
+ * Document heading for the task group: single task keeps `# Title`,
+ * group gets `# Tasks 2,3: Title B, Title C`.
+ */
+function formatDocumentHeading(tasks: Task[]): string {
+  if (tasks.length === 1) return `# ${tasks[0].title}`;
+  const numbers = tasks.map(t => t.index + 1).join(',');
+  const titles = tasks.map(t => t.title).join(', ');
+  return `# Tasks ${numbers}: ${titles}`;
+}
+
+/** Task section for the document body. Single task keeps the historical `## Task` block. */
+function formatDocumentTasks(tasks: Task[]): string {
+  if (tasks.length === 1) return `## Task\n\n${tasks[0].description}`;
+  return tasks.map(t => `## Task ${t.index + 1}: ${t.title}\n\n${t.description}`).join('\n\n');
+}
+
+/** Compact task list for the LLM system prompt. */
+function formatPromptTasks(tasks: Task[]): string {
+  if (tasks.length === 1) return `Task: ${tasks[0].title}\n${tasks[0].description}`;
+  return tasks.map(t => `Task ${t.index + 1}: ${t.title}\n${t.description}`).join('\n\n');
+}
+
+/**
  * Build the markdown document for Scenario 1 — no discussion (the task has
  * not been worked on yet, so no LLM summarization is needed).
  */
-export function buildDocumentNoDiscussion(task: Task): string {
-  return [`# ${task.title}`, '', '## Task', '', task.description].join('\n');
+export function buildDocumentNoDiscussion(tasks: Task[]): string {
+  return [formatDocumentHeading(tasks), '', '## Task', '', formatDocumentTasks(tasks)].join('\n');
 }
 
 /**
@@ -150,13 +173,13 @@ export function buildDocumentNoDiscussion(task: Task): string {
 export async function buildDocumentWithDiscussion(
   model: Model<any>,
   modelRegistry: ModelRegistry,
-  task: Task,
+  tasks: Task[],
   branch: SessionEntry[],
   signal?: AbortSignal
 ): Promise<string> {
   const conversationText = formatBranchConversation(branch);
 
-  const systemPrompt = `${SUMMARIZATION_PROMPT}\n\nTask: ${task.title}\n${task.description}`;
+  const systemPrompt = `${SUMMARIZATION_PROMPT}\n\n${formatPromptTasks(tasks)}`;
   const summary = await callLlm(
     model,
     modelRegistry,
@@ -166,15 +189,26 @@ export async function buildDocumentWithDiscussion(
     signal
   );
 
-  return [`# ${task.title}`, '', '## Task', '', task.description, '', '## Summary', '', summary].join('\n');
+  return [
+    formatDocumentHeading(tasks),
+    '',
+    '## Task',
+    '',
+    formatDocumentTasks(tasks),
+    '',
+    '## Summary',
+    '',
+    summary,
+  ].join('\n');
 }
 
 /**
  * Generate the filename for the document: `<yyyy-mm-dd-hh-mm>-<slug>.md`
+ * The slug comes from the first task of the group.
  */
-export function buildFileName(task: Task, now: Date = new Date()): string {
+export function buildFileName(tasks: Task[], now: Date = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   const prefix = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}-${pad(now.getMinutes())}`;
-  const slug = slugify(task.title);
+  const slug = slugify(tasks[0]?.title ?? 'task');
   return `${prefix}-${slug}.md`;
 }

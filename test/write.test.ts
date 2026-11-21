@@ -204,7 +204,7 @@ describe('formatBranchConversation', () => {
 
 describe('buildDocumentNoDiscussion', () => {
   it('builds document with "Not started" for undone task', () => {
-    const doc = buildDocumentNoDiscussion(fakeTask);
+    const doc = buildDocumentNoDiscussion([fakeTask]);
     expect(doc).toContain('# Fix null pointer in UserService');
     expect(doc).toContain('## Task');
     expect(doc).toContain('Fix NPE in UserService.java line 42.');
@@ -213,7 +213,7 @@ describe('buildDocumentNoDiscussion', () => {
 
   it('builds document for done task', () => {
     const doneTask: Task = { ...fakeTask, done: true };
-    const doc = buildDocumentNoDiscussion(doneTask);
+    const doc = buildDocumentNoDiscussion([doneTask]);
     expect(doc).toContain('# Fix null pointer in UserService');
     expect(doc).not.toContain('## Progress');
   });
@@ -237,7 +237,7 @@ describe('buildDocumentWithDiscussion', () => {
       makeMessageEntry('assistant', [{ type: 'text', text: 'I fixed it' }]),
     ];
 
-    const doc = await buildDocumentWithDiscussion(fakeModel, fakeRegistry, fakeTask, branch);
+    const doc = await buildDocumentWithDiscussion(fakeModel, fakeRegistry, [fakeTask], branch);
 
     expect(doc).toContain('# Fix null pointer in UserService');
     expect(doc).toContain('## Task');
@@ -250,14 +250,14 @@ describe('buildDocumentWithDiscussion', () => {
     complete.mockResolvedValue(makeAssistantResponse('Summary'));
 
     const doneTask: Task = { ...fakeTask, done: true };
-    const doc = await buildDocumentWithDiscussion(fakeModel, fakeRegistry, doneTask, []);
+    const doc = await buildDocumentWithDiscussion(fakeModel, fakeRegistry, [doneTask], []);
     expect(doc).not.toContain('## Progress');
   });
 
   it('throws when response is aborted', async () => {
     complete.mockResolvedValue(makeAssistantResponse('partial...', 'aborted'));
 
-    await expect(buildDocumentWithDiscussion(fakeModel, fakeRegistry, fakeTask, [])).rejects.toThrow(
+    await expect(buildDocumentWithDiscussion(fakeModel, fakeRegistry, [fakeTask], [])).rejects.toThrow(
       'Summarization cancelled'
     );
   });
@@ -265,13 +265,13 @@ describe('buildDocumentWithDiscussion', () => {
   it('propagates errors from complete', async () => {
     complete.mockRejectedValue(new Error('Network error'));
 
-    await expect(buildDocumentWithDiscussion(fakeModel, fakeRegistry, fakeTask, [])).rejects.toThrow('Network error');
+    await expect(buildDocumentWithDiscussion(fakeModel, fakeRegistry, [fakeTask], [])).rejects.toThrow('Network error');
   });
 
   it('calls complete with summarization prompt containing task info', async () => {
     complete.mockResolvedValue(makeAssistantResponse('Summary'));
 
-    await buildDocumentWithDiscussion(fakeModel, fakeRegistry, fakeTask, []);
+    await buildDocumentWithDiscussion(fakeModel, fakeRegistry, [fakeTask], []);
 
     expect(complete).toHaveBeenCalledOnce();
     const call = complete.mock.calls[0];
@@ -288,14 +288,14 @@ describe('buildDocumentWithDiscussion', () => {
 describe('buildFileName', () => {
   it('generates filename with date prefix and slugified title', () => {
     const now = new Date(2026, 4, 8, 14, 30); // 2026-05-08 14:30
-    const fileName = buildFileName(fakeTask, now);
+    const fileName = buildFileName([fakeTask], now);
     expect(fileName).toBe('2026-05-08-14-30-Fix-null-pointer-in-UserService.md');
   });
 
   it('slugifies special characters', () => {
     const task: Task = { ...fakeTask, title: 'Fix: bug in /api/users' };
     const now = new Date(2026, 0, 1, 9, 5);
-    const fileName = buildFileName(task, now);
+    const fileName = buildFileName([task], now);
     // slugify removes unsafe chars (:/) and replaces whitespace with hyphens
     expect(fileName).toBe('2026-01-01-09-05-Fix-bug-in-apiusers.md');
   });

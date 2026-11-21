@@ -12,7 +12,8 @@ describe('resolveNextTask', () => {
       insideBbb: true,
       skipSessionTree: false,
       rootEntryId: 'root',
-      currentTaskIndex: index,
+      currentTaskIndexes: [index],
+      groupBranchLeafIds: new Map(),
       tasks: Array.from({ length: total }, (_, i) => ({
         index: i,
         title: `Task ${i + 1}`,
@@ -47,7 +48,8 @@ describe('resolvePrevTask', () => {
       insideBbb: true,
       skipSessionTree: false,
       rootEntryId: 'root',
-      currentTaskIndex: index,
+      currentTaskIndexes: [index],
+      groupBranchLeafIds: new Map(),
       tasks: Array.from({ length: total }, (_, i) => ({
         index: i,
         title: `Task ${i + 1}`,
@@ -71,6 +73,66 @@ describe('resolvePrevTask', () => {
 
   it('returns null with single task', () => {
     expect(resolvePrevTask(makeState(0, 1))).toBeNull();
+  });
+});
+
+describe('resolveNextTask (group)', () => {
+  function makeGroupState(indexes: number[], total: number): BitByBitState {
+    return {
+      initialized: true,
+      active: true,
+      insideBbb: true,
+      skipSessionTree: false,
+      rootEntryId: 'root',
+      currentTaskIndexes: indexes,
+      tasks: Array.from({ length: total }, (_, i) => ({
+        index: i,
+        title: `Task ${i + 1}`,
+        description: `Desc ${i + 1}`,
+        done: false,
+      })),
+      groupBranchLeafIds: new Map(),
+    };
+  }
+
+  it('skips past the whole group to the task after it', () => {
+    expect(resolveNextTask(makeGroupState([1, 2], 5))).toBe(3);
+  });
+
+  it('returns null when group ends at last task', () => {
+    expect(resolveNextTask(makeGroupState([3, 4], 5))).toBeNull();
+  });
+
+  it('returns null when currentTaskIndexes is empty', () => {
+    expect(resolveNextTask(makeGroupState([], 5))).toBeNull();
+  });
+});
+
+describe('resolvePrevTask (group)', () => {
+  function makeGroupState(indexes: number[], total: number): BitByBitState {
+    return {
+      initialized: true,
+      active: true,
+      insideBbb: true,
+      skipSessionTree: false,
+      rootEntryId: 'root',
+      currentTaskIndexes: indexes,
+      tasks: Array.from({ length: total }, (_, i) => ({
+        index: i,
+        title: `Task ${i + 1}`,
+        description: `Desc ${i + 1}`,
+        done: false,
+      })),
+      groupBranchLeafIds: new Map(),
+    };
+  }
+
+  it('goes to the task before the first group member', () => {
+    expect(resolvePrevTask(makeGroupState([1, 2], 5))).toBe(0);
+  });
+
+  it('returns null when group starts at first task', () => {
+    expect(resolvePrevTask(makeGroupState([0, 1], 5))).toBeNull();
   });
 });
 
@@ -131,7 +193,7 @@ describe('handleNext', () => {
     // Should create branch entry for task 2 (index 1)
     expect(appendEntry).toHaveBeenCalledWith('bit-by-bit-branch', {
       rootEntryId: 'leaf-root',
-      taskIndex: 1,
+      taskIndexes: [1],
     });
 
     // Should send task description
@@ -188,7 +250,7 @@ describe('handleNext', () => {
     expect(notify).toHaveBeenCalledWith('bit-by-bit: switched to task 2', 'info');
   });
 
-  it('does not update currentTaskIndex when navigateTree is cancelled', async () => {
+  it('does not update currentTaskIndexes when navigateTree is cancelled', async () => {
     const { cmd, notify } = setupExtension();
     const ctx = makeCtx({ notify });
 

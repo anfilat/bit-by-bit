@@ -19,7 +19,8 @@ function makeState(overrides: Partial<BitByBitState> = {}): BitByBitState {
     insideBbb: true,
     skipSessionTree: false,
     rootEntryId: 'root-1',
-    currentTaskIndex: 0,
+    currentTaskIndexes: [0],
+    groupBranchLeafIds: new Map(),
     tasks: [
       { index: 0, title: 'Task 1', description: 'Desc 1', done: false },
       { index: 1, title: 'Task 2', description: 'Desc 2', done: false },
@@ -90,7 +91,7 @@ describe('turn_end handler', () => {
     const { pi } = createMockPi();
     bitByBitExtension(pi);
 
-    const state = makeState({ insideBbb: true, currentTaskIndex: 0 });
+    const state = makeState({ insideBbb: true, currentTaskIndexes: [0] });
     activateState(pi, state);
 
     const getLeafId = vi.fn(() => 'leaf-new');
@@ -105,11 +106,11 @@ describe('turn_end handler', () => {
     expect(state.tasks[0].branchLeafId).toBe('leaf-new');
   });
 
-  it('updates branchLeafId for the correct task based on currentTaskIndex', () => {
+  it('updates branchLeafId for the correct task based on currentTaskIndexes', () => {
     const { pi } = createMockPi();
     bitByBitExtension(pi);
 
-    const state = makeState({ insideBbb: true, currentTaskIndex: 1 });
+    const state = makeState({ insideBbb: true, currentTaskIndexes: [1] });
     activateState(pi, state);
 
     const getLeafId = vi.fn(() => 'leaf-for-task-2');
@@ -123,5 +124,25 @@ describe('turn_end handler', () => {
     expect(state.tasks[1].branchLeafId).toBe('leaf-for-task-2');
     // Task 0 should remain untouched
     expect(state.tasks[0].branchLeafId).toBeUndefined();
+  });
+  it('updates groupBranchLeafIds for a task group', () => {
+    const { pi } = createMockPi();
+    bitByBitExtension(pi);
+
+    const state = makeState({ insideBbb: true, currentTaskIndexes: [0, 1] });
+    activateState(pi, state);
+
+    const getLeafId = vi.fn(() => 'leaf-group-new');
+    const ctx = {
+      sessionManager: { getLeafId },
+    } as unknown as ExtensionCommandContext;
+
+    const handler = getHandler(pi, 'turn_end');
+    handler({} as TurnEndEvent, ctx);
+
+    expect(state.groupBranchLeafIds.get('1+2')).toBe('leaf-group-new');
+    // Individual task branchLeafIds remain untouched
+    expect(state.tasks[0].branchLeafId).toBeUndefined();
+    expect(state.tasks[1].branchLeafId).toBeUndefined();
   });
 });

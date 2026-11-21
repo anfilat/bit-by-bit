@@ -1,6 +1,6 @@
 {
   "name": "@anfilat/bit-by-bit",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Step-by-step task management for Pi — splits LLM output into isolated task branches",
   "author": "Andrey Filatkin",
   "type": "module",
@@ -40,12 +40,14 @@
   "files": [
     "src/**/*.ts",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "pi": {
     "extensions": [
       "./src"
-    ]
+    ],
+    "changelogPath": "./CHANGELOG.md"
   },
   "repository": {
     "type": "git",

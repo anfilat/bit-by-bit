@@ -50,7 +50,8 @@ describe('session_start handler', () => {
       insideBbb: true,
       skipSessionTree: false,
       rootEntryId: 'root-1',
-      currentTaskIndex: 0,
+      currentTaskIndexes: [0],
+      groupBranchLeafIds: new Map(),
       tasks: [
         { index: 0, title: 'Task 1', description: 'Desc 1', done: false },
         { index: 1, title: 'Task 2', description: 'Desc 2', done: true },

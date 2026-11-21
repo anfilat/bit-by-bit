@@ -144,7 +144,7 @@ describe('handleStart', () => {
     });
     expect(appendEntry).toHaveBeenNthCalledWith(2, 'bit-by-bit-branch', {
       rootEntryId: 'leaf-abc',
-      taskIndex: 0,
+      taskIndexes: [0],
     });
 
     // Should have set label on the leaf
@@ -202,5 +202,103 @@ describe('handleStart', () => {
     expect(notify).toHaveBeenCalledWith('bit-by-bit: navigation cancelled', 'info');
     // Should NOT show success message
     expect(notify).not.toHaveBeenCalledWith(expect.stringContaining('tasks extracted'), 'info');
+  });
+});
+
+describe('handleStart with task selection args', () => {
+  it('starts a group branch for "2,3"', async () => {
+    const { cmd, notify, appendEntry, sendMessage, setLabel } = setupExtension();
+
+    const tasks = [
+      { title: 'Task A', description: 'Desc A' },
+      { title: 'Task B', description: 'Desc B' },
+      { title: 'Task C', description: 'Desc C' },
+    ];
+
+    const ctx = makeCtx({
+      notify,
+      branchEntries: [makeBranchEntry('assistant', 'Review text')],
+      leafId: 'leaf-root',
+    });
+    ctx.ui.custom = vi.fn().mockResolvedValue(tasks);
+
+    await cmd.handler('start 2,3', ctx);
+
+    expect(appendEntry).toHaveBeenLastCalledWith('bit-by-bit-branch', {
+      rootEntryId: 'leaf-root',
+      taskIndexes: [1, 2],
+    });
+    expect(sendMessage).toHaveBeenCalledWith(
+      {
+        customType: MESSAGE_TYPE.TASK_DESCRIPTION,
+        content: '**Tasks 2,3/3**\n\n### Task 2: Task B\n\nDesc B\n\n### Task 3: Task C\n\nDesc C',
+        display: true,
+      },
+      { triggerTurn: false }
+    );
+    expect(setLabel).toHaveBeenCalledWith(expect.any(String), 'bbb:2+3:Task B');
+    expect(notify).toHaveBeenCalledWith('bit-by-bit: 3 tasks extracted, starting tasks 2,3', 'info');
+  });
+
+  it('starts a range group for "2-3"', async () => {
+    const { cmd, notify, appendEntry } = setupExtension();
+
+    const tasks = [
+      { title: 'Task A', description: 'Desc A' },
+      { title: 'Task B', description: 'Desc B' },
+      { title: 'Task C', description: 'Desc C' },
+    ];
+
+    const ctx = makeCtx({
+      notify,
+      branchEntries: [makeBranchEntry('assistant', 'Review text')],
+      leafId: 'leaf-root',
+    });
+    ctx.ui.custom = vi.fn().mockResolvedValue(tasks);
+
+    await cmd.handler('start 2-3', ctx);
+
+    expect(appendEntry).toHaveBeenLastCalledWith('bit-by-bit-branch', {
+      rootEntryId: 'leaf-root',
+      taskIndexes: [1, 2],
+    });
+  });
+
+  it('rejects invalid selection syntax before extraction', async () => {
+    const { cmd, notify, appendEntry } = setupExtension();
+
+    const ctx = makeCtx({
+      notify,
+      branchEntries: [makeBranchEntry('assistant', 'Review text')],
+    });
+    ctx.ui.custom = vi.fn().mockResolvedValue([
+      { title: 'A', description: 'a' },
+      { title: 'B', description: 'b' },
+    ]);
+
+    await cmd.handler('start abc', ctx);
+
+    expect(notify).toHaveBeenCalledWith('bit-by-bit: invalid task selection — use e.g. "2,3" or "2-4"', 'error');
+    expect(appendEntry).not.toHaveBeenCalled();
+    expect(ctx.ui.custom).not.toHaveBeenCalled();
+  });
+
+  it('rejects selection referencing non-existent tasks', async () => {
+    const { cmd, notify, appendEntry } = setupExtension();
+
+    const ctx = makeCtx({
+      notify,
+      branchEntries: [makeBranchEntry('assistant', 'Review text')],
+      leafId: 'leaf-root',
+    });
+    ctx.ui.custom = vi.fn().mockResolvedValue([
+      { title: 'A', description: 'a' },
+      { title: 'B', description: 'b' },
+    ]);
+
+    await cmd.handler('start 3', ctx);
+
+    expect(notify).toHaveBeenCalledWith('bit-by-bit: task 3 does not exist (1..2)', 'error');
+    expect(appendEntry).not.toHaveBeenCalled();
   });
 });

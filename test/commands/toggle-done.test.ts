@@ -200,3 +200,117 @@ describe('handleUndone', () => {
     expect(appendEntry).not.toHaveBeenCalled();
   });
 });
+
+describe('group done/undone', () => {
+  it('marks all tasks of the group done with one entry per task', async () => {
+    const { cmd, notify, appendEntry } = setupExtension();
+    const ctx = makeCtx({ notify });
+
+    // Activate, then select group {1,2} via list
+    await activateState(cmd, ctx, [
+      { title: 'Task A', description: 'Desc A' },
+      { title: 'Task B', description: 'Desc B' },
+      { title: 'Task C', description: 'Desc C' },
+    ]);
+    ctx.ui.custom = vi.fn().mockResolvedValue([1, 2]);
+    ctx.sessionManager.getLeafId = vi.fn().mockReturnValue('leaf-group');
+    await cmd.handler('list', ctx);
+
+    notify.mockClear();
+    appendEntry.mockClear();
+
+    await cmd.handler('done', ctx);
+
+    expect(appendEntry).toHaveBeenCalledTimes(2);
+    expect(appendEntry).toHaveBeenNthCalledWith(1, 'bit-by-bit-done', {
+      rootEntryId: 'leaf-root',
+      taskIndex: 1,
+    });
+    expect(appendEntry).toHaveBeenNthCalledWith(2, 'bit-by-bit-done', {
+      rootEntryId: 'leaf-root',
+      taskIndex: 2,
+    });
+    expect(notify).toHaveBeenCalledWith('bit-by-bit: tasks 2,3 marked as done', 'info');
+  });
+
+  it('partially-done group can still be marked done (only pending entries appended)', async () => {
+    const { cmd, notify, appendEntry } = setupExtension();
+    const ctx = makeCtx({ notify });
+
+    await activateState(cmd, ctx, [
+      { title: 'Task A', description: 'Desc A' },
+      { title: 'Task B', description: 'Desc B' },
+      { title: 'Task C', description: 'Desc C' },
+    ]);
+    ctx.ui.custom = vi.fn().mockResolvedValue([0, 1]);
+    ctx.sessionManager.getLeafId = vi.fn().mockReturnValue('leaf-group');
+    await cmd.handler('list', ctx);
+
+    // Mark task A (index 0) done individually first — switch to it and done
+    ctx.ui.custom = vi.fn().mockResolvedValue([0]);
+    await cmd.handler('list', ctx);
+    await cmd.handler('done', ctx);
+
+    // Back to the group
+    ctx.ui.custom = vi.fn().mockResolvedValue([0, 1]);
+    await cmd.handler('list', ctx);
+
+    notify.mockClear();
+    appendEntry.mockClear();
+
+    await cmd.handler('done', ctx);
+
+    // Only task B (index 1) was pending — a single new entry
+    expect(appendEntry).toHaveBeenCalledTimes(1);
+    expect(appendEntry).toHaveBeenCalledWith('bit-by-bit-done', {
+      rootEntryId: 'leaf-root',
+      taskIndex: 1,
+    });
+  });
+
+  it('notifies "already done" only when the whole group is done', async () => {
+    const { cmd, notify, appendEntry } = setupExtension();
+    const ctx = makeCtx({ notify });
+
+    await activateState(cmd, ctx, [
+      { title: 'Task A', description: 'Desc A' },
+      { title: 'Task B', description: 'Desc B' },
+    ]);
+    ctx.ui.custom = vi.fn().mockResolvedValue([0, 1]);
+    ctx.sessionManager.getLeafId = vi.fn().mockReturnValue('leaf-group');
+    await cmd.handler('list', ctx);
+
+    await cmd.handler('done', ctx);
+
+    notify.mockClear();
+    appendEntry.mockClear();
+
+    await cmd.handler('done', ctx);
+
+    expect(notify).toHaveBeenCalledWith('bit-by-bit: tasks 1,2 already done', 'info');
+    expect(appendEntry).not.toHaveBeenCalled();
+  });
+
+  it('undone marks the whole group undone', async () => {
+    const { cmd, notify, appendEntry } = setupExtension();
+    const ctx = makeCtx({ notify });
+
+    await activateState(cmd, ctx, [
+      { title: 'Task A', description: 'Desc A' },
+      { title: 'Task B', description: 'Desc B' },
+    ]);
+    ctx.ui.custom = vi.fn().mockResolvedValue([0, 1]);
+    ctx.sessionManager.getLeafId = vi.fn().mockReturnValue('leaf-group');
+    await cmd.handler('list', ctx);
+
+    await cmd.handler('done', ctx);
+
+    notify.mockClear();
+    appendEntry.mockClear();
+
+    await cmd.handler('undone', ctx);
+
+    expect(appendEntry).toHaveBeenCalledTimes(2);
+    expect(notify).toHaveBeenCalledWith('bit-by-bit: tasks 1,2 marked as undone', 'info');
+  });
+});

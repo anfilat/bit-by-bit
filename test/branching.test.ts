@@ -14,7 +14,8 @@ function makeState(rootEntryId: string): BitByBitState {
     insideBbb: true,
     skipSessionTree: false,
     rootEntryId,
-    currentTaskIndex: 0,
+    currentTaskIndexes: [0],
+    groupBranchLeafIds: new Map(),
     tasks: [
       { index: 0, title: 'Task 1', description: 'Desc 1', done: false },
       { index: 1, title: 'Task 2', description: 'Desc 2', done: false },
@@ -121,7 +122,7 @@ describe('findTaskByLeaf', () => {
     const state = makeState(rootEntryId);
 
     const result = findTaskByLeaf(state, task0Assistant, sm);
-    expect(result).toBe(0);
+    expect(result).toEqual([0]);
   });
 
   it('returns null when leaf is on a branch without bit-by-bit-branch', () => {
@@ -180,7 +181,7 @@ describe('findTaskByLeaf', () => {
     const state = makeState(rootEntryId);
     // Test with the middle user message (above branch entry, still in subtree)
     const result = findTaskByLeaf(state, midUserMsg, sm);
-    expect(result).toBe(0);
+    expect(result).toEqual([0]);
   });
 
   it('returns correct taskIndex for second branch', () => {
@@ -189,7 +190,7 @@ describe('findTaskByLeaf', () => {
     const state = makeState(rootEntryId);
 
     const result = findTaskByLeaf(state, task1Assistant, sm);
-    expect(result).toBe(1);
+    expect(result).toEqual([1]);
   });
 
   it('returns null when leaf is the rootEntryId itself', () => {
@@ -215,7 +216,7 @@ describe('findBranchInSubtree', () => {
 
     const result = findBranchInSubtree(node!, rootEntryId);
     expect(result).not.toBeNull();
-    expect(result!.taskIndex).toBe(0);
+    expect(result!.taskIndexes).toEqual([0]);
     expect(result!.leafId).toBe(task0Assistant);
   });
 
@@ -263,11 +264,11 @@ describe('findBranchInSubtree', () => {
     const result1 = findBranchInSubtree(node1!, rootEntryId);
 
     expect(result0).not.toBeNull();
-    expect(result0!.taskIndex).toBe(0);
+    expect(result0!.taskIndexes).toEqual([0]);
     expect(result0!.leafId).toBe(task0Assistant);
 
     expect(result1).not.toBeNull();
-    expect(result1!.taskIndex).toBe(1);
+    expect(result1!.taskIndexes).toEqual([1]);
     expect(result1!.leafId).toBe(task1Assistant);
   });
 
@@ -323,7 +324,65 @@ describe('findBranchInSubtree', () => {
 
     const result = findBranchInSubtree(node!, rootEntryId);
     expect(result).not.toBeNull();
-    expect(result!.taskIndex).toBe(0);
+    expect(result!.taskIndexes).toEqual([0]);
     expect(result!.leafId).toBe(altResp);
+  });
+
+  describe('task groups', () => {
+    it('findTaskByLeaf returns all indexes of a group branch', () => {
+      const sm = SessionManager.inMemory();
+      const rootEntryId = assistantMsg(sm, 'review');
+
+      sm.branch(rootEntryId);
+      userMsg(sm, 'Group description');
+      sm.appendCustomEntry(ENTRY_TYPE.BRANCH, {
+        rootEntryId,
+        taskIndexes: [1, 0],
+      });
+      const groupLeaf = assistantMsg(sm, 'Working on the group...');
+
+      const state = makeState(rootEntryId);
+      const result = findTaskByLeaf(state, groupLeaf, sm);
+      expect(result).toEqual([1, 0]);
+    });
+
+    it('findTaskByLeaf falls back to legacy taskIndex payload', () => {
+      const sm = SessionManager.inMemory();
+      const rootEntryId = assistantMsg(sm, 'review');
+
+      sm.branch(rootEntryId);
+      userMsg(sm, 'Task description');
+      sm.appendCustomEntry(ENTRY_TYPE.BRANCH, {
+        rootEntryId,
+        taskIndex: 1,
+      });
+      const leaf = assistantMsg(sm, 'Working...');
+
+      const state = makeState(rootEntryId);
+      const result = findTaskByLeaf(state, leaf, sm);
+      expect(result).toEqual([1]);
+    });
+
+    it('findBranchInSubtree returns taskIndexes for a group branch', () => {
+      const sm = SessionManager.inMemory();
+      const rootEntryId = assistantMsg(sm, 'review');
+
+      sm.branch(rootEntryId);
+      const taskStart = userMsg(sm, 'Group start');
+      sm.appendCustomEntry(ENTRY_TYPE.BRANCH, {
+        rootEntryId,
+        taskIndexes: [0, 2],
+      });
+      const leaf = assistantMsg(sm, 'Response');
+
+      const tree = sm.getTree();
+      const node = findTreeNodeById(tree, taskStart);
+      expect(node).toBeDefined();
+
+      const result = findBranchInSubtree(node!, rootEntryId);
+      expect(result).not.toBeNull();
+      expect(result!.taskIndexes).toEqual([0, 2]);
+      expect(result!.leafId).toBe(leaf);
+    });
   });
 });

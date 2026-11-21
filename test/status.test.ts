@@ -15,7 +15,8 @@ describe('formatStatus', () => {
       insideBbb: false,
       skipSessionTree: false,
       rootEntryId: 'r1',
-      currentTaskIndex: 0,
+      currentTaskIndexes: [0],
+      groupBranchLeafIds: new Map(),
       tasks: [
         { index: 0, title: 'Fix bug', description: 'desc', done: false },
         { index: 1, title: 'Add test', description: 'desc', done: true },
@@ -33,7 +34,8 @@ describe('formatStatus', () => {
       insideBbb: true,
       skipSessionTree: false,
       rootEntryId: 'r1',
-      currentTaskIndex: 1,
+      currentTaskIndexes: [1],
+      groupBranchLeafIds: new Map(),
       tasks: [
         { index: 0, title: 'Fix bug', description: 'desc', done: true },
         { index: 1, title: 'Add test', description: 'desc', done: false },
@@ -60,7 +62,8 @@ describe('formatStatus', () => {
       insideBbb: true,
       skipSessionTree: false,
       rootEntryId: 'r1',
-      currentTaskIndex: 2,
+      currentTaskIndexes: [2],
+      groupBranchLeafIds: new Map(),
       tasks,
     };
     const result = formatStatus(state);
@@ -74,7 +77,8 @@ describe('formatStatus', () => {
       insideBbb: true,
       skipSessionTree: false,
       rootEntryId: 'r1',
-      currentTaskIndex: 0,
+      currentTaskIndexes: [0],
+      groupBranchLeafIds: new Map(),
       tasks: [
         { index: 0, title: 'Fix bug', description: 'desc', done: true },
         { index: 1, title: 'Add test', description: 'desc', done: false },
@@ -82,5 +86,43 @@ describe('formatStatus', () => {
     };
     const result = formatStatus(state);
     expect(result).toBe('bit-by-bit: 1/2(✓1) | ✓ ▸ Fix bug');
+  });
+
+  it('shows group numbers and +N suffix for a task group', () => {
+    const state: BitByBitState = {
+      initialized: true,
+      active: true,
+      insideBbb: true,
+      skipSessionTree: false,
+      rootEntryId: 'r1',
+      currentTaskIndexes: [1, 2],
+      groupBranchLeafIds: new Map(),
+      tasks: [
+        { index: 0, title: 'Fix bug', description: 'desc', done: true },
+        { index: 1, title: 'Add test', description: 'desc', done: false },
+        { index: 2, title: 'Refactor', description: 'desc', done: false },
+      ],
+    };
+    const result = formatStatus(state);
+    expect(result).toBe('bit-by-bit: 2,3/3(✓1) | ✗ ▸ Add test +1');
+  });
+
+  it('shows ✓ for a group only when all its tasks are done', () => {
+    const state: BitByBitState = {
+      initialized: true,
+      active: true,
+      insideBbb: true,
+      skipSessionTree: false,
+      rootEntryId: 'r1',
+      currentTaskIndexes: [1, 2],
+      groupBranchLeafIds: new Map(),
+      tasks: [
+        { index: 0, title: 'Fix bug', description: 'desc', done: false },
+        { index: 1, title: 'Add test', description: 'desc', done: true },
+        { index: 2, title: 'Refactor', description: 'desc', done: true },
+      ],
+    };
+    const result = formatStatus(state);
+    expect(result).toBe('bit-by-bit: 2,3/3(✓2) | ✓ ▸ Add test +1');
   });
 });

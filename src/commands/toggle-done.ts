@@ -1,6 +1,7 @@
 import type { ExtensionAPI, ExtensionCommandContext } from '@earendil-works/pi-coding-agent';
 import { ENTRY_TYPE } from '../constants.js';
 import type { BitByBitState } from '../types.js';
+import { formatNumbers } from '../task-group.js';
 import { updateStatus } from '../status.js';
 import { guard } from './guard.js';
 
@@ -12,31 +13,40 @@ async function toggleDone(
 ): Promise<void> {
   if (!(await guard(state, ctx, { requireInsideBbb: true }))) return;
 
-  const taskIndex = state.currentTaskIndex;
-  const task = state.tasks[taskIndex];
+  const indexes = state.currentTaskIndexes;
+  const label = indexes.length > 1 ? `tasks ${formatNumbers(indexes)}` : `task ${formatNumbers(indexes)}`;
 
   if (direction === 'done') {
-    if (task.done) {
-      ctx.ui.notify(`bit-by-bit: task ${taskIndex + 1} already done`, 'info');
+    const pending = indexes.filter(i => !state.tasks[i].done);
+    if (pending.length === 0) {
+      ctx.ui.notify(`bit-by-bit: ${label} already done`, 'info');
       return;
     }
-    task.done = true;
+    for (const i of pending) {
+      state.tasks[i].done = true;
+      pi.appendEntry(ENTRY_TYPE.DONE, {
+        rootEntryId: state.rootEntryId,
+        taskIndex: i,
+      });
+    }
   } else {
-    if (!task.done) {
-      ctx.ui.notify(`bit-by-bit: task ${taskIndex + 1} is not done`, 'info');
+    const doneIndexes = indexes.filter(i => state.tasks[i].done);
+    if (doneIndexes.length === 0) {
+      ctx.ui.notify(`bit-by-bit: ${label} is not done`, 'info');
       return;
     }
-    task.done = false;
+    for (const i of doneIndexes) {
+      state.tasks[i].done = false;
+      pi.appendEntry(ENTRY_TYPE.UNDONE, {
+        rootEntryId: state.rootEntryId,
+        taskIndex: i,
+      });
+    }
   }
-
-  pi.appendEntry(direction === 'done' ? ENTRY_TYPE.DONE : ENTRY_TYPE.UNDONE, {
-    rootEntryId: state.rootEntryId,
-    taskIndex,
-  });
 
   updateStatus(state, ctx);
 
-  ctx.ui.notify(`bit-by-bit: task ${taskIndex + 1} marked as ${direction === 'done' ? 'done' : 'undone'}`, 'info');
+  ctx.ui.notify(`bit-by-bit: ${label} marked as ${direction === 'done' ? 'done' : 'undone'}`, 'info');
 }
 
 export async function handleDone(state: BitByBitState, ctx: ExtensionCommandContext, pi: ExtensionAPI): Promise<void> {

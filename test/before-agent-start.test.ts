@@ -26,7 +26,8 @@ function makeState(overrides: Partial<BitByBitState> = {}): BitByBitState {
     insideBbb: true,
     skipSessionTree: false,
     rootEntryId: 'root-1',
-    currentTaskIndex: 0,
+    currentTaskIndexes: [0],
+    groupBranchLeafIds: new Map(),
     tasks: [
       { index: 0, title: 'Fix null pointer', description: 'Fix the NPE in UserService', done: false },
       { index: 1, title: 'Add tests', description: 'Write unit tests for UserService', done: false },
@@ -80,7 +81,7 @@ describe('before_agent_start handler', () => {
     const { pi } = createMockPi();
     bitByBitExtension(pi);
 
-    const state = makeState({ currentTaskIndex: 0 });
+    const state = makeState({ currentTaskIndexes: [0] });
     activateState(pi, state);
 
     const handler = getHandler(pi, 'before_agent_start');
@@ -95,11 +96,11 @@ describe('before_agent_start handler', () => {
     );
   });
 
-  it('returns context for second task when currentTaskIndex is 1', () => {
+  it('returns context for second task when currentTaskIndexes is [1]', () => {
     const { pi } = createMockPi();
     bitByBitExtension(pi);
 
-    const state = makeState({ currentTaskIndex: 1 });
+    const state = makeState({ currentTaskIndexes: [1] });
     activateState(pi, state);
 
     const handler = getHandler(pi, 'before_agent_start');
@@ -115,7 +116,8 @@ describe('before_agent_start handler', () => {
     bitByBitExtension(pi);
 
     const state = makeState({
-      currentTaskIndex: 1,
+      currentTaskIndexes: [1],
+      groupBranchLeafIds: new Map(),
       tasks: [
         { index: 0, title: 'Fix null pointer', description: 'Fix the NPE in UserService', done: true },
         { index: 1, title: 'Add tests', description: 'Write unit tests for UserService', done: false },
@@ -129,5 +131,28 @@ describe('before_agent_start handler', () => {
     expect(result.message.content).toBe(
       '[bit-by-bit] You are working on a single task from a larger list.\nAll user messages on this branch refer exclusively to this task. When the user says "re-check", "fix", "explain" etc — they mean THIS task only, not the full list.\n\nTasks from this list are worked on one at a time \u2014 not necessarily in order \u2014 in the same repository. Other tasks from the list may already be completed by now, so the current code is NOT the code from when this list was written. Existing edits, modified files and git changes from those tasks are expected — do not be surprised by them and do not treat them as a conflict. Verify the actual state of the code (read files, git status / git diff) before making assumptions from the task description — parts of the work may already be implemented.\n\nAlready completed tasks (their changes are expected in the code):\n1. Fix null pointer\n\n## Task: Add tests\n\nWrite unit tests for UserService'
     );
+  });
+  it('returns group context with per-task sections for a multi-task group', () => {
+    const { pi } = createMockPi();
+    bitByBitExtension(pi);
+
+    const state = makeState({
+      currentTaskIndexes: [0, 1],
+      groupBranchLeafIds: new Map(),
+    });
+    activateState(pi, state);
+
+    const handler = getHandler(pi, 'before_agent_start');
+    const result = handler({} as BeforeAgentStartEvent);
+
+    expect(result.message.content).toContain(
+      '[bit-by-bit] You are working on a selected group of tasks (2 of them) from a larger list.'
+    );
+    expect(result.message.content).toContain(
+      'All user messages on this branch refer exclusively to THIS group of tasks.'
+    );
+    expect(result.message.content).toContain('## Tasks 1,2 of 2');
+    expect(result.message.content).toContain('### Task 1: Fix null pointer\n\nFix the NPE in UserService');
+    expect(result.message.content).toContain('### Task 2: Add tests\n\nWrite unit tests for UserService');
   });
 });

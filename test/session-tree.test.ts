@@ -19,7 +19,8 @@ function makeState(overrides: Partial<BitByBitState> = {}): BitByBitState {
     insideBbb: true,
     skipSessionTree: false,
     rootEntryId: 'root-1',
-    currentTaskIndex: 0,
+    currentTaskIndexes: [0],
+    groupBranchLeafIds: new Map(),
     tasks: [
       { index: 0, title: 'Task 1', description: 'Desc 1', done: false, branchLeafId: 'leaf-task0' },
       { index: 1, title: 'Task 2', description: 'Desc 2', done: false, branchLeafId: 'leaf-task1' },
@@ -88,11 +89,11 @@ describe('session_tree handler', () => {
     expect(setStatus).not.toHaveBeenCalled();
   });
 
-  it('sets insideBbb=true and updates currentTaskIndex when navigating to a task branch', () => {
+  it('sets insideBbb=true and updates currentTaskIndexes when navigating to a task branch', () => {
     const { pi } = createMockPi();
     bitByBitExtension(pi);
 
-    const state = makeState({ insideBbb: false, currentTaskIndex: 0 });
+    const state = makeState({ insideBbb: false, currentTaskIndexes: [0] });
     activateState(pi, state);
 
     const setStatus = vi.fn();
@@ -131,7 +132,7 @@ describe('session_tree handler', () => {
     const { pi } = createMockPi();
     bitByBitExtension(pi);
 
-    const state = makeState({ insideBbb: true, currentTaskIndex: 0 });
+    const state = makeState({ insideBbb: true, currentTaskIndexes: [0] });
     activateState(pi, state);
 
     const setStatus = vi.fn();
@@ -162,7 +163,7 @@ describe('session_tree handler', () => {
     const { pi } = createMockPi();
     bitByBitExtension(pi);
 
-    const state = makeState({ insideBbb: true, currentTaskIndex: 0 });
+    const state = makeState({ insideBbb: true, currentTaskIndexes: [0] });
     activateState(pi, state);
 
     const setStatus = vi.fn();
@@ -192,7 +193,7 @@ describe('session_tree handler', () => {
     const { pi } = createMockPi();
     bitByBitExtension(pi);
 
-    const state = makeState({ insideBbb: false, currentTaskIndex: 0 });
+    const state = makeState({ insideBbb: false, currentTaskIndexes: [0] });
     activateState(pi, state);
 
     const setStatus = vi.fn();
@@ -221,7 +222,7 @@ describe('session_tree handler', () => {
     const { pi } = createMockPi();
     bitByBitExtension(pi);
 
-    const state = makeState({ insideBbb: true, currentTaskIndex: 0 });
+    const state = makeState({ insideBbb: true, currentTaskIndexes: [0] });
     activateState(pi, state);
 
     const setStatus = vi.fn();
@@ -235,5 +236,66 @@ describe('session_tree handler', () => {
 
     // Status bar should show "Outside task area"
     expect(setStatus).toHaveBeenCalledWith('bit-by-bit', expect.stringContaining('Outside'));
+  });
+  it('sets currentTaskIndexes to the group when navigating to a group branch', () => {
+    const { pi } = createMockPi();
+    bitByBitExtension(pi);
+
+    const state = makeState({ insideBbb: false, currentTaskIndexes: [0] });
+    activateState(pi, state);
+
+    const setStatus = vi.fn();
+    // getEntry returns a group branch entry when walking up from newLeafId
+    const getEntry = vi.fn().mockImplementation((id: string) => {
+      if (id === 'leaf-on-group') {
+        return {
+          type: 'custom',
+          customType: 'bit-by-bit-branch',
+          data: { rootEntryId: 'root-1', taskIndexes: [0, 1] },
+          parentId: 'parent-id',
+        };
+      }
+      if (id === 'parent-id') {
+        return { type: 'message', parentId: 'root-1' };
+      }
+      return { type: 'message', parentId: null };
+    });
+
+    const ctx = {
+      sessionManager: { getLeafId: vi.fn(), getEntry },
+      ui: { setStatus },
+    };
+
+    const handler = getHandler(pi, 'session_tree');
+    handler({ newLeafId: 'leaf-on-group', oldLeafId: 'leaf-old' } as SessionTreeEvent, ctx);
+
+    // Internal state (not the test's object) holds the group — verify via status bar
+    const statusText = setStatus.mock.calls[0][1] as string;
+    expect(statusText).toContain('1,2/2');
+    expect(statusText).toContain('+1');
+    expect(statusText).not.toContain('Outside');
+  });
+
+  it('preserves the group branch leaf when leaving a group branch', () => {
+    const { pi } = createMockPi();
+    bitByBitExtension(pi);
+
+    const state = makeState({ insideBbb: true, currentTaskIndexes: [0, 1] });
+    state.groupBranchLeafIds.set('1+2', 'leaf-group-old');
+    activateState(pi, state);
+
+    const setStatus = vi.fn();
+    const getLeafId = vi.fn(() => 'leaf-group-current');
+    const getEntry = vi.fn().mockImplementation(() => ({ type: 'message', parentId: null }));
+
+    const ctx = {
+      sessionManager: { getLeafId, getEntry },
+      ui: { setStatus },
+    };
+
+    const handler = getHandler(pi, 'session_tree');
+    handler({ newLeafId: 'leaf-outside', oldLeafId: 'leaf-group-old' } as SessionTreeEvent, ctx);
+
+    expect(state.groupBranchLeafIds.get('1+2')).toBe('leaf-group-current');
   });
 });
