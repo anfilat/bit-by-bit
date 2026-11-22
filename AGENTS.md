@@ -29,6 +29,7 @@
 | `write.ts` | Progress document generation (fast path + LLM-summarized path) |
 | `commands/start.ts` | Extract tasks from last assistant message, start first |
 | `commands/list.ts` | Show task list with SelectList, switch to chosen |
+| `commands/group.ts` | Switch to a task group directly — `list` without showing the list |
 | `commands/next-prev.ts` | Navigate to next/previous task |
 | `commands/switch-task.ts` | Core navigation — fork branches, send task description |
 | `commands/toggle-done.ts` | Mark/unmark task as done |
@@ -42,8 +43,8 @@
 | Command | Description |
 |---------|-------------|
 | `/bit-by-bit` (or `start`) | Extract tasks from last assistant message, start first task |
-| `/bit-by-bit start 2,3,5` | Extract tasks, start the given ones as a group (ranges: `2-4`, mixed: `2-4,7`) |
 | `/bit-by-bit list` | Show task list, switch to chosen task(s) — `space` marks, `enter` confirms |
+| `/bit-by-bit group 2-4,7` | Switch to a task group directly — like `list`, but without showing the list (ranges: `2-4`, mixed: `2-4,7`) |
 | `/bit-by-bit next` | Go to next task (past the whole group when on a group branch) |
 | `/bit-by-bit prev` | Go to previous task |
 | `/bit-by-bit done` | Mark current task(s) as done |

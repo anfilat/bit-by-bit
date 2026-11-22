@@ -5,9 +5,9 @@
  * Each task gets its own branch in the session tree for context isolation.
  *
  * Usage:
- *   /bit-by-bit           — extract tasks from last assistant message, start first
- *   /bit-by-bit start 2,3 — extract tasks, start the given ones as a group (also "2-4", "2-4,7")
- *   /bit-by-bit list      — show task list, switch to selected (space marks several, enter confirms)
+ *   /bit-by-bit              — extract tasks from last assistant message, start first task
+ *   /bit-by-bit list         — show task list, switch to selected (space marks several, enter confirms)
+ *   /bit-by-bit group 2-4,7  — switch to a task group directly (like list, no list shown; "2", "2,3", "2-4", "2-4,7")
  *   /bit-by-bit next      — go to next task (after the whole group when on a group branch)
  *   /bit-by-bit prev      — go to previous task
  *   /bit-by-bit done      — mark current task(s) as done
@@ -32,6 +32,7 @@ import { updateStatus } from './status.js';
 import { findTaskByLeaf } from './branching.js';
 
 import { handleStart } from './commands/start.js';
+import { handleGroup } from './commands/group.js';
 import { handleList } from './commands/list.js';
 import { handleNext, handlePrev } from './commands/next-prev.js';
 import { handleDone, handleUndone } from './commands/toggle-done.js';
@@ -41,7 +42,7 @@ import { handleResume } from './commands/resume.js';
 
 // ─── Subcommand parsing ────────────────────────────────────────────────────
 
-const SUBCOMMANDS = ['start', 'list', 'next', 'prev', 'done', 'undone', 'write', 'off', 'resume'] as const;
+const SUBCOMMANDS = ['start', 'list', 'group', 'next', 'prev', 'done', 'undone', 'write', 'off', 'resume'] as const;
 type Subcommand = (typeof SUBCOMMANDS)[number];
 
 function parseSubcommand(args: string): { sub: Subcommand; rest: string } | null {
@@ -63,6 +64,7 @@ type HandlerFn = (state: BitByBitState, ctx: ExtensionCommandContext, pi: Extens
 const HANDLERS: Record<Subcommand, HandlerFn> = {
   start: handleStart,
   list: handleList,
+  group: handleGroup,
   next: handleNext,
   prev: handlePrev,
   done: handleDone,

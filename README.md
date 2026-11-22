@@ -27,8 +27,8 @@ in a single shared branch (see [Task groups](#task-groups)).
 | Command | Description |
 |---------|-------------|
 | `/bit-by-bit` | Extract tasks from last assistant message, start first task |
-| `/bit-by-bit start 2,3,5` | Extract tasks and start the given ones as a group (also `2-4`, `2-4,7`) |
 | `/bit-by-bit list` | Show task list, switch to chosen task(s) — `space` marks, `enter` confirms |
+| `/bit-by-bit group 2-4,7` | Switch to a task group directly — like `list`, but without showing the list (also `2,3`, `2-4`) |
 | `/bit-by-bit next` | Go to next task (after the whole group when on a group branch) |
 | `/bit-by-bit prev` | Go to previous task |
 | `/bit-by-bit done` | Mark current task(s) as done |
@@ -69,9 +69,9 @@ bit-by-bit: 12(✓2) | ⚠ Outside task area
 Sometimes several tasks belong together — e.g. three items touching the same file. You can work on them
 in one branch with a combined context:
 
-- `/bit-by-bit start 2,3` or `/bit-by-bit start 2-4` — start a group right away (also mixed: `2-4,7`).
 - `/bit-by-bit list` — press `space` to mark tasks (`a` — all, `i` — invert), then `enter`.
   Enter without marks still selects the single task under the cursor.
+- `/bit-by-bit group 2,3` or `/bit-by-bit group 2-4` — switch to a group right away (also mixed: `2-4,7`).
 
 On a group branch the assistant receives all task descriptions at once, the status bar shows
 `bit-by-bit: 2,3/8(✓1) | ✗ ▸ Add tests +1`, and `/bit-by-bit done` marks the whole group done.

@@ -2,12 +2,18 @@
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-22
+
+### Added
+
+- `/bit-by-bit group <selection>` — switch to a task group directly, like `list` without showing the list (`2`, `2,3`, `2-4`, `2-4,7`).
+
 ## [0.3.0] - 2026-11-21
 
 ### Added
 
 - Task groups: select several tasks and work on them together in one shared branch.
-  - `/bit-by-bit start 2,3`, `2-4` or `2-4,7` — start a group right away.
+  - `/bit-by-bit start 2,3`, `2-4` or `2-4,7` — start a group right away (superseded in 0.3.1 by `group`).
   - `/bit-by-bit list` — `space` marks tasks (`a` — all, `i` — invert), `enter` confirms; enter without marks keeps the old single-select behavior.
   - Group status bar (`bit-by-bit: 2,3/8(✓1) | ✗ ▸ Title +1`) and group branch labels (`bbb:2+3:…`).
   - `done`/`undone` operate on the whole group; `next`/`prev` step over it.

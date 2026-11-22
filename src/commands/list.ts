@@ -2,9 +2,8 @@ import type { ExtensionAPI, ExtensionCommandContext } from '@earendil-works/pi-c
 import { DynamicBorder } from '@earendil-works/pi-coding-agent';
 import { Container, type SelectItem, SelectList, Text } from '@earendil-works/pi-tui';
 import type { BitByBitState } from '../types.js';
-import { formatNumbers, normalizeIndexes, sameTaskSet } from '../task-group.js';
-import { updateStatus } from '../status.js';
-import { switchToTasks } from './switch-task.js';
+import { formatNumbers, normalizeIndexes } from '../task-group.js';
+import { switchSelection } from './switch-task.js';
 import { guard } from './guard.js';
 
 /**
@@ -110,23 +109,5 @@ export async function handleList(state: BitByBitState, ctx: ExtensionCommandCont
   const indexes = normalizeIndexes(selection).filter(i => i >= 0 && i < state.tasks.length);
   if (indexes.length === 0) return;
 
-  // Already on this task/group (only when inside a task branch)
-  if (state.insideBbb && sameTaskSet(indexes, state.currentTaskIndexes)) {
-    const isGroup = indexes.length > 1;
-    ctx.ui.notify(`bit-by-bit: already on ${isGroup ? 'these tasks' : 'this task'}`, 'info');
-    return;
-  }
-
-  const navigated = await switchToTasks(state, indexes, ctx, pi);
-  if (!navigated) {
-    ctx.ui.notify('bit-by-bit: navigation cancelled', 'info');
-    return;
-  }
-
-  state.currentTaskIndexes = indexes;
-  state.insideBbb = true;
-
-  updateStatus(state, ctx);
-  const label = indexes.length > 1 ? `tasks ${formatNumbers(indexes)}` : `task ${formatNumbers(indexes)}`;
-  ctx.ui.notify(`bit-by-bit: switched to ${label}`, 'info');
+  await switchSelection(state, indexes, ctx, pi);
 }

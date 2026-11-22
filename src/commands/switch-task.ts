@@ -1,7 +1,8 @@
 import type { ExtensionAPI, ExtensionCommandContext } from '@earendil-works/pi-coding-agent';
 import { ENTRY_TYPE, MESSAGE_TYPE } from '../constants.js';
 import type { BitByBitState, Task } from '../types.js';
-import { groupKey, normalizeIndexes } from '../task-group.js';
+import { formatNumbers, groupKey, normalizeIndexes, sameTaskSet } from '../task-group.js';
+import { updateStatus } from '../status.js';
 
 const MAX_TITLE_IN_LABEL = 40;
 
@@ -110,4 +111,36 @@ export async function switchToTasks(
   } finally {
     state.skipSessionTree = false;
   }
+}
+
+/**
+ * Switch to a task selection: skip when already on it, navigate (or create) the
+ * branch, then update state and status. Notifies the user about the outcome.
+ * Shared by the `list` and `group` commands.
+ */
+export async function switchSelection(
+  state: BitByBitState,
+  indexes: number[],
+  ctx: ExtensionCommandContext,
+  pi: ExtensionAPI
+): Promise<void> {
+  // Already on this task/group (only when inside a task branch)
+  if (state.insideBbb && sameTaskSet(indexes, state.currentTaskIndexes)) {
+    const isGroup = indexes.length > 1;
+    ctx.ui.notify(`bit-by-bit: already on ${isGroup ? 'these tasks' : 'this task'}`, 'info');
+    return;
+  }
+
+  const navigated = await switchToTasks(state, indexes, ctx, pi);
+  if (!navigated) {
+    ctx.ui.notify('bit-by-bit: navigation cancelled', 'info');
+    return;
+  }
+
+  state.currentTaskIndexes = indexes;
+  state.insideBbb = true;
+
+  updateStatus(state, ctx);
+  const label = indexes.length > 1 ? `tasks ${formatNumbers(indexes)}` : `task ${formatNumbers(indexes)}`;
+  ctx.ui.notify(`bit-by-bit: switched to ${label}`, 'info');
 }

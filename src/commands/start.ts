@@ -3,16 +3,10 @@ import { BorderedLoader } from '@earendil-works/pi-coding-agent';
 import { extractTasks } from '../extraction.js';
 import { ENTRY_TYPE } from '../constants.js';
 import type { BitByBitState, Task } from '../types.js';
-import { formatNumbers, parseTaskSelection } from '../task-group.js';
 import { updateStatus } from '../status.js';
 import { switchToTasks } from './switch-task.js';
 
-export async function handleStart(
-  state: BitByBitState,
-  ctx: ExtensionCommandContext,
-  pi: ExtensionAPI,
-  args = ''
-): Promise<void> {
+export async function handleStart(state: BitByBitState, ctx: ExtensionCommandContext, pi: ExtensionAPI): Promise<void> {
   if (!ctx.hasUI) {
     ctx.ui.notify('bit-by-bit requires interactive mode', 'error');
     return;
@@ -24,20 +18,13 @@ export async function handleStart(
     return;
   }
 
-  // 2. Parse task selection args ("2,3", "2-4", default: first task)
-  const selection = args.trim() === '' ? [0] : parseTaskSelection(args);
-  if (!selection) {
-    ctx.ui.notify('bit-by-bit: invalid task selection — use e.g. "2,3" or "2-4"', 'error');
-    return;
-  }
-
-  // 3. Model required
+  // 2. Model required
   if (!ctx.model) {
     ctx.ui.notify('bit-by-bit: no model selected', 'error');
     return;
   }
 
-  // 4. Find last assistant message on current branch
+  // 3. Find last assistant message on current branch
   const branch = ctx.sessionManager.getBranch();
   let lastAssistantText: string | undefined;
 
@@ -62,7 +49,7 @@ export async function handleStart(
     return;
   }
 
-  // 5. Extract tasks with loader UI
+  // 4. Extract tasks with loader UI
   const tasks = await ctx.ui.custom<{ title: string; description: string }[] | null>((tui, theme, _kb, done) => {
     const loader = new BorderedLoader(tui, theme, `Extracting tasks using ${ctx.model!.id}...`);
     loader.onAbort = () => done(null);
@@ -82,13 +69,13 @@ export async function handleStart(
     return loader;
   });
 
-  // 6. Cancelled
+  // 5. Cancelled
   if (tasks === null) {
     ctx.ui.notify('bit-by-bit: cancelled', 'info');
     return;
   }
 
-  // 7. Validate results
+  // 6. Validate results
   if (tasks.length === 0) {
     ctx.ui.notify('bit-by-bit: no tasks found in the message', 'error');
     return;
@@ -99,25 +86,14 @@ export async function handleStart(
     return;
   }
 
-  // 8. Validate selection bounds against the extracted task count
-  const outOfRange = selection.filter(i => i >= tasks.length);
-  if (outOfRange.length > 0) {
-    const bad = outOfRange.map(i => i + 1).join(',');
-    ctx.ui.notify(
-      `bit-by-bit: task${outOfRange.length > 1 ? 's' : ''} ${bad} do${outOfRange.length > 1 ? '' : 'es'} not exist (1..${tasks.length})`,
-      'error'
-    );
-    return;
-  }
-
-  // 9. Determine rootEntryId (current leaf)
+  // 7. Determine rootEntryId (current leaf)
   const rootEntryId = ctx.sessionManager.getLeafId();
   if (!rootEntryId) {
     ctx.ui.notify('bit-by-bit: no active leaf entry', 'error');
     return;
   }
 
-  // 10. Build task objects
+  // 8. Build task objects
   const taskObjects: Task[] = tasks.map((t, i) => ({
     index: i,
     title: t.title,
@@ -125,33 +101,32 @@ export async function handleStart(
     done: false,
   }));
 
-  // 11. Persist init entry
+  // 9. Persist init entry
   pi.appendEntry(ENTRY_TYPE.INIT, {
     rootEntryId,
     tasks: taskObjects,
   });
 
-  // 12. Set state needed by switchToTasks
+  // 10. Set state needed by switchToTasks
   state.rootEntryId = rootEntryId;
   state.tasks = taskObjects;
   state.groupBranchLeafIds = new Map();
 
-  // 13. Navigate to the selected task group (creates branch from root)
-  const navigated = await switchToTasks(state, selection, ctx, pi);
+  // 11. Navigate to the first task (creates branch from root)
+  const navigated = await switchToTasks(state, [0], ctx, pi);
   if (!navigated) {
     ctx.ui.notify('bit-by-bit: navigation cancelled', 'info');
     return;
   }
 
-  // 14. Mark as active only after successful navigation
+  // 12. Mark as active only after successful navigation
   state.initialized = true;
   state.active = true;
   state.insideBbb = true;
-  state.currentTaskIndexes = selection;
+  state.currentTaskIndexes = [0];
 
-  // 15. Update status
+  // 13. Update status
   updateStatus(state, ctx);
 
-  const startLabel = selection.length > 1 ? `tasks ${formatNumbers(selection)}` : `task ${selection[0] + 1}`;
-  ctx.ui.notify(`bit-by-bit: ${state.tasks.length} tasks extracted, starting ${startLabel}`, 'info');
+  ctx.ui.notify(`bit-by-bit: ${state.tasks.length} tasks extracted, starting task 1`, 'info');
 }
